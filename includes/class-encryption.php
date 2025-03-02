@@ -61,8 +61,10 @@ class WP_Messenger_Chat_Encryption {
         }
 
         // Użyj OpenSSL do szyfrowania
-        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-        $encrypted = openssl_encrypt($message, 'aes-256-cbc', $this->encryption_key, 0, $iv);
+        $cipher = 'aes-256-cbc';
+        $iv_length = openssl_cipher_iv_length($cipher);
+        $iv = openssl_random_pseudo_bytes($iv_length);
+        $encrypted = openssl_encrypt($message, $cipher, $this->encryption_key, 0, $iv);
         
         // Połącz IV i zaszyfrowaną wiadomość i zakoduj base64
         return base64_encode($iv . $encrypted);
@@ -82,14 +84,29 @@ class WP_Messenger_Chat_Encryption {
         try {
             // Dekoduj base64
             $decoded = base64_decode($encrypted_message);
+            if ($decoded === false) {
+                // Nie jest to prawidłowy base64, zwróć oryginalną wiadomość
+                return $encrypted_message;
+            }
             
             // Pobierz IV i zaszyfrowaną wiadomość
-            $iv_length = openssl_cipher_iv_length('aes-256-cbc');
+            $cipher = 'aes-256-cbc';
+            $iv_length = openssl_cipher_iv_length($cipher);
+            
+            // Sprawdź, czy zdekodowana wiadomość jest wystarczająco długa
+            if (strlen($decoded) <= $iv_length) {
+                // Wiadomość jest za krótka, zwróć oryginalną
+                return $encrypted_message;
+            }
+            
             $iv = substr($decoded, 0, $iv_length);
             $encrypted = substr($decoded, $iv_length);
             
             // Deszyfruj
-            return openssl_decrypt($encrypted, 'aes-256-cbc', $this->encryption_key, 0, $iv);
+            $decrypted = openssl_decrypt($encrypted, $cipher, $this->encryption_key, 0, $iv);
+            
+            // Jeśli deszyfrowanie się nie powiodło, zwróć oryginalną wiadomość
+            return $decrypted !== false ? $decrypted : $encrypted_message;
         } catch (Exception $e) {
             error_log('Błąd deszyfrowania: ' . $e->getMessage());
             return $encrypted_message; // Zwróć oryginalną wiadomość w przypadku błędu
