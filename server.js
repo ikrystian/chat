@@ -1,16 +1,39 @@
 // server.js
 const http = require('http');
-const server = http.createServer();
+const express = require('express');
+const app = express();
+const server = http.createServer(app);
 const io = require('socket.io')(server, {
     cors: {
         origin: '*',
         methods: ['GET', 'POST']
     }
 });
+const bodyParser = require('body-parser');
+
+// Middleware dla obsługi JSON
+app.use(bodyParser.json());
 
 // Przechowywanie aktywnych użytkowników
 const activeUsers = {};
 
+// Endpointy HTTP
+app.post('/send-message', (req, res) => {
+    const data = req.body;
+
+    // Sprawdź, czy odbiorca jest online
+    if (activeUsers[data.recipient_id]) {
+        // Emituj wiadomość do odbiorcy
+        io.to(activeUsers[data.recipient_id]).emit('new_message', {
+            conversation_id: data.conversation_id,
+            message: data.message
+        });
+    }
+
+    res.json({ success: true });
+});
+
+// Obsługa połączeń WebSocket
 io.on('connection', (socket) => {
     console.log('Nowe połączenie: ' + socket.id);
 
@@ -21,8 +44,8 @@ io.on('connection', (socket) => {
         console.log(`Użytkownik ${userId} zarejestrowany`);
     });
 
-    // Nowa wiadomość
-    socket.on('new_message', (data) => {
+    // Obsługa bezpośrednich wiadomości z klienta (opcjonalnie)
+    socket.on('direct_message', (data) => {
         const recipientId = data.recipient_id;
 
         // Jeśli odbiorca jest online, wyślij wiadomość

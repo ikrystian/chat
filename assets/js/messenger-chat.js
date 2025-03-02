@@ -18,11 +18,23 @@
         });
 
         socket.on('new_message', function(data) {
+            console.log('Otrzymano nową wiadomość:', data);
+
             if (data.conversation_id === activeConversation) {
+                // Dodaj wiadomość do czatu
                 appendMessage(data.message);
+
+                // Przewiń do najnowszej wiadomości
+                scrollToBottom();
             } else {
-                // Powiadomienie o nowej wiadomości
-                updateConversationList();
+                // Powiadomienie o nowej wiadomości w innej konwersacji
+                notifyNewMessage(data.conversation_id);
+            }
+        });
+
+        socket.on('typing', function(data) {
+            if (data.conversation_id === activeConversation) {
+                showTypingIndicator(data.user_id);
             }
         });
 
@@ -33,6 +45,65 @@
         });
     }
 
+    // Powiadomienie o nowej wiadomości
+    function notifyNewMessage(conversationId) {
+        // Znajdź konwersację na liście i dodaj wskaźnik nowej wiadomości
+        const conversationItem = $(`.conversation-item[data-conversation-id="${conversationId}"]`);
+        conversationItem.addClass('has-new-message');
+
+        // Opcjonalnie - dodaj dźwięk powiadomienia
+        playNotificationSound();
+
+        // Przenieś konwersację na górę listy
+        const conversationsList = $('.messenger-conversations-list');
+        conversationsList.prepend(conversationItem);
+    }
+
+    // Odtwarzanie dźwięku powiadomienia
+    function playNotificationSound() {
+        // Możesz dodać tutaj odtwarzanie krótkiego dźwięku
+        // np. new Audio('/path/to/notification.mp3').play();
+    }
+
+    // Wyświetlanie wskaźnika pisania
+    function showTypingIndicator(userId) {
+        // Dodaj wskaźnik pisania do interfejsu
+        const typingIndicator = $('.typing-indicator');
+
+        if (typingIndicator.length === 0) {
+            $('.messenger-messages').append(
+                '<div class="typing-indicator">Użytkownik pisze...</div>'
+            );
+        }
+
+        // Ukryj wskaźnik po 3 sekundach, jeśli nie otrzymano nowego zdarzenia
+        clearTimeout(window.typingTimeout);
+        window.typingTimeout = setTimeout(function() {
+            $('.typing-indicator').remove();
+        }, 3000);
+    }
+
+    // Wysyłanie informacji o pisaniu
+    function sendTypingNotification() {
+        const conversationId = $('#messenger-conversation-id').val();
+        const recipientId = $('#messenger-recipient-id').val() || getRecipientIdFromConversation(conversationId);
+
+        if (conversationId && socket.connected) {
+            socket.emit('typing', {
+                conversation_id: parseInt(conversationId),
+                recipient_id: parseInt(recipientId),
+                user_id: currentUserId
+            });
+        }
+    }
+
+    // Pobranie ID odbiorcy z ID konwersacji
+    function getRecipientIdFromConversation(conversationId) {
+        // Pobierz z atrybutu data DOM lub z cache
+        const conversationItem = $(`.conversation-item[data-conversation-id="${conversationId}"]`);
+        return conversationItem.data('recipient-id');
+    }
+
     // Inicjalizacja czatu
     function initChat() {
         connectWebSocket();
@@ -40,6 +111,10 @@
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function() {
             const conversationId = $(this).data('conversation-id');
+
+            // Usuń klasę wskazującą nową wiadomość
+            $(this).removeClass('has-new-message');
+
             openConversation(conversationId);
         });
 
@@ -52,6 +127,11 @@
         // Obsługa przycisku wysyłania
         $('#messenger-send-btn').on('click', function() {
             sendMessage();
+        });
+
+        // Powiadomienie o pisaniu podczas wprowadzania tekstu
+        $('#messenger-message').on('input', function() {
+            sendTypingNotification();
         });
 
         // Obsługa otwierania nowej konwersacji
@@ -71,8 +151,12 @@
             $('#messenger-recipient-id').val(recipientId);
             $('#messenger-conversation-id').val(0);
 
+            // Zachowaj ID odbiorcy w elemencie DOM
+            $(this).attr('data-recipient-id', recipientId);
+
             // Zamknij listę kontaktów na urządzeniach mobilnych
             $('.messenger-conversations').removeClass('active');
+            $('.messenger-chat-area').addClass('active');
         });
 
         // Obsługa przycisków mobilnych
@@ -118,7 +202,7 @@
 
     // Otwieranie konwersacji
     function openConversation(conversationId) {
-        activeConversation = conversationId;
+        activeConversation = parseInt(conversationId);
 
         // Aktualizuj UI
         $('.conversation-item').removeClass('active');
@@ -201,12 +285,9 @@
 
                     // Jeśli to była nowa konwersacja, zaktualizuj ID konwersacji
                     if (conversationId === '0') {
-                        activeConversation = response.data.conversation_id;
+                        activeConversation = parseInt(response.data.conversation_id);
                         $('#messenger-conversation-id').val(response.data.conversation_id);
                         $('#messenger-recipient-id').val('');
-
-                        // Zaktualizuj listę konwersacji
-                        updateConversationList();
                     }
 
                     // Przewiń do najnowszej wiadomości
@@ -233,13 +314,6 @@
 
         $('.messenger-messages').append(messageHtml);
         scrollToBottom();
-    }
-
-    // Aktualizacja listy konwersacji
-    function updateConversationList() {
-        // Odśwież całą listę konwersacji z serwera
-        // W prawdziwym scenariuszu możemy optymalizować i aktualizować tylko zmienione elementy
-        location.reload();
     }
 
     // Formatowanie czasu

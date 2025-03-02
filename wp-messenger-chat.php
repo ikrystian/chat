@@ -238,6 +238,7 @@ class WP_Messenger_Chat {
         global $wpdb;
         $table_messages = $wpdb->prefix . 'messenger_messages';
         $table_conversations = $wpdb->prefix . 'messenger_conversations';
+        $table_participants = $wpdb->prefix . 'messenger_participants';
 
         $result = $wpdb->insert(
             $table_messages,
@@ -269,7 +270,27 @@ class WP_Messenger_Chat {
             $new_message->sender_avatar = get_avatar_url($user_id);
             $new_message->is_mine = true;
 
-            // WebSocket event (do zaimplementowania w node.js)
+            // Pobierz ID odbiorcy (drugi uczestnik konwersacji)
+            $recipient_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT user_id FROM {$table_participants} 
+             WHERE conversation_id = %d AND user_id != %d",
+                $conversation_id, $user_id
+            ));
+
+            // Przygotuj dane dla WebSocket
+            $socket_data = array(
+                'conversation_id' => $conversation_id,
+                'recipient_id' => $recipient_id,
+                'message' => $new_message
+            );
+
+            // Tutaj wysyłamy dane do WebSocketa za pomocą HTTP POST
+            $socket_url = get_option('messenger_chat_websocket_server', 'http://localhost:3000') . '/send-message';
+            $response = wp_remote_post($socket_url, array(
+                'body' => json_encode($socket_data),
+                'headers' => array('Content-Type' => 'application/json'),
+                'timeout' => 5
+            ));
 
             wp_send_json_success(array(
                 'message' => $new_message,
