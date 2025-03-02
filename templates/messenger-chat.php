@@ -5,7 +5,7 @@
     <!-- Pasek boczny z konwersacjami -->
     <div class="messenger-conversations active">
         <div class="messenger-search-container">
-            <input type="text" id="messenger-search" class="messenger-search" placeholder="Szukaj...">
+            <input type="text" id="messenger-search" class="messenger-search" placeholder="Szukaj konwersacji...">
         </div>
 
         <div class="messenger-tabs">
@@ -18,12 +18,16 @@
             <?php if (empty($conversations)): ?>
                 <div class="empty-state">
                     <p>Nie masz jeszcze żadnych konwersacji</p>
+                    <p>Wybierz kontakt, aby rozpocząć czat</p>
                 </div>
             <?php else: ?>
                 <?php foreach ($conversations as $conversation): ?>
                     <div class="conversation-item" data-conversation-id="<?php echo esc_attr($conversation->id); ?>">
                         <div class="conversation-avatar">
                             <img src="<?php echo esc_url($conversation->other_user_avatar); ?>" alt="<?php echo esc_attr($conversation->other_user_name); ?>">
+                            <?php if (rand(0, 1)): // Przykładowy status online - w rzeczywistej aplikacji bazowałby na danych użytkownika ?>
+                                <span class="online-status"></span>
+                            <?php endif; ?>
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-header">
@@ -58,6 +62,9 @@
                     <div class="contact-item new-conversation" data-user-id="<?php echo esc_attr($user->ID); ?>" data-user-name="<?php echo esc_attr($user->display_name); ?>">
                         <div class="contact-avatar">
                             <img src="<?php echo esc_url(get_avatar_url($user->ID)); ?>" alt="<?php echo esc_attr($user->display_name); ?>">
+                            <?php if (rand(0, 1)): // Przykładowy status online ?>
+                                <span class="online-status"></span>
+                            <?php endif; ?>
                         </div>
                         <div class="contact-info">
                             <div class="contact-header">
