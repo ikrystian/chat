@@ -297,20 +297,23 @@
         });
     }
 
-    // Dodawanie wiadomości do interfejsu
+// Dodawanie wiadomości do interfejsu
     function appendMessage(message) {
+        // Sprawdź, czy wiadomość posiada właściwość is_mine
+        // i na jej podstawie określ klasę wiadomości
         const messageClass = message.is_mine ? 'my-message' : 'their-message';
+
         const messageHtml = `
-            <div class="message-item ${messageClass}">
-                <div class="message-avatar">
-                    <img src="${message.sender_avatar}" alt="${message.sender_name}">
-                </div>
-                <div class="message-content">
-                    <div class="message-text">${message.message}</div>
-                    <div class="message-time">${formatTime(message.sent_at)}</div>
-                </div>
+        <div class="message-item ${messageClass}">
+            <div class="message-avatar">
+                <img src="${message.sender_avatar}" alt="${message.sender_name}">
             </div>
-        `;
+            <div class="message-content">
+                <div class="message-text">${message.message}</div>
+                <div class="message-time">${formatTime(message.sent_at)}</div>
+            </div>
+        </div>
+    `;
 
         $('.messenger-messages').append(messageHtml);
         scrollToBottom();

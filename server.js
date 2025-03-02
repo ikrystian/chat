@@ -23,15 +23,21 @@ app.post('/send-message', (req, res) => {
 
     // Sprawdź, czy odbiorca jest online
     if (activeUsers[data.recipient_id]) {
-        // Emituj wiadomość do odbiorcy
+        // Stwórz kopię wiadomości i zmień is_mine na false dla odbiorcy
+        const messageForRecipient = {...data.message};
+        messageForRecipient.is_mine = false;  // Kluczowa zmiana: dla odbiorcy to NIE jest jego wiadomość
+
+        // Emituj wiadomość do odbiorcy z poprawioną flagą is_mine
         io.to(activeUsers[data.recipient_id]).emit('new_message', {
             conversation_id: data.conversation_id,
-            message: data.message
+            message: messageForRecipient
         });
     }
 
     res.json({ success: true });
 });
+
+
 
 // Obsługa połączeń WebSocket
 io.on('connection', (socket) => {
@@ -44,15 +50,18 @@ io.on('connection', (socket) => {
         console.log(`Użytkownik ${userId} zarejestrowany`);
     });
 
-    // Obsługa bezpośrednich wiadomości z klienta (opcjonalnie)
     socket.on('direct_message', (data) => {
         const recipientId = data.recipient_id;
 
         // Jeśli odbiorca jest online, wyślij wiadomość
         if (activeUsers[recipientId]) {
+            // Stwórz kopię wiadomości i zmień is_mine na false dla odbiorcy
+            const messageForRecipient = {...data.message};
+            messageForRecipient.is_mine = false;  // To nie jest wiadomość odbiorcy
+
             io.to(activeUsers[recipientId]).emit('new_message', {
                 conversation_id: data.conversation_id,
-                message: data.message
+                message: messageForRecipient
             });
         }
     });
