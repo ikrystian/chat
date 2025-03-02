@@ -95,10 +95,19 @@
             <form id="messenger-chat-form">
                 <input type="hidden" id="messenger-conversation-id" value="0">
                 <input type="hidden" id="messenger-recipient-id" value="0">
-                <textarea id="messenger-message" placeholder="Napisz wiadomość..."></textarea>
-                <button type="submit" id="messenger-send-btn">
-                    <i class="dashicons dashicons-arrow-right-alt2"></i>
-                </button>
+                <div class="messenger-input-container">
+                    <textarea id="messenger-message" placeholder="Napisz wiadomość..."></textarea>
+                    <div class="messenger-attachments-preview" id="messenger-attachments-preview"></div>
+                </div>
+                <div class="messenger-actions">
+                    <label for="messenger-attachment" class="messenger-attachment-btn">
+                        <i class="dashicons dashicons-paperclip"></i>
+                        <input type="file" id="messenger-attachment" accept=".pdf" style="display: none;">
+                    </label>
+                    <button type="submit" id="messenger-send-btn">
+                        <i class="dashicons dashicons-arrow-right-alt2"></i>
+                    </button>
+                </div>
             </form>
         </div>
     </div>

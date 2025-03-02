@@ -42,6 +42,30 @@ class WP_Messenger_Chat {
 
         // Dodanie obsługi parametru chat_with w URL
         add_action('wp_loaded', array($this, 'handle_chat_redirect'));
+        
+        // Utworzenie katalogu na załączniki
+        $this->create_attachments_directory();
+    }
+    
+    /**
+     * Tworzy katalog na załączniki
+     */
+    private function create_attachments_directory() {
+        $upload_dir = wp_upload_dir();
+        $attachments_dir = $upload_dir['basedir'] . '/messenger-attachments';
+        
+        if (!file_exists($attachments_dir)) {
+            wp_mkdir_p($attachments_dir);
+            
+            // Dodaj plik .htaccess dla zabezpieczenia
+            $htaccess_content = "Options -Indexes\n";
+            $htaccess_content .= "<FilesMatch '\.(php|php5|phtml|pht|phar|phps)$'>\n";
+            $htaccess_content .= "Order Deny,Allow\n";
+            $htaccess_content .= "Deny from all\n";
+            $htaccess_content .= "</FilesMatch>\n";
+            
+            file_put_contents($attachments_dir . '/.htaccess', $htaccess_content);
+        }
     }
 
     public function init() {
@@ -98,6 +122,7 @@ class WP_Messenger_Chat {
     public function enqueue_scripts() {
         // CSS
         wp_enqueue_style('messenger-chat-style', plugin_dir_url(__FILE__) . 'assets/css/messenger-chat.css', array(), '1.0.0');
+        wp_enqueue_style('dashicons');
 
         // JavaScript
         wp_enqueue_script('socket-io', 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js', array(), '4.4.1', true);
@@ -105,11 +130,14 @@ class WP_Messenger_Chat {
 
         // Przekazanie zmiennych do JavaScript
         $user_id = get_current_user_id();
+        $upload_dir = wp_upload_dir();
+        
         wp_localize_script('messenger-chat-js', 'messengerChat', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'user_id' => $user_id,
             'nonce' => wp_create_nonce('messenger_chat_nonce'),
-            'websocket_server' => get_option('messenger_chat_websocket_server', 'ws://localhost:3000')
+            'websocket_server' => get_option('messenger_chat_websocket_server', 'ws://localhost:3000'),
+            'uploads_url' => $upload_dir['baseurl'] . '/messenger-attachments'
         ));
     }
 
@@ -214,6 +242,9 @@ class WP_Messenger_Chat {
         wp_send_json_success($messages);
     }
 
+    /**
+     * Obsługuje wysyłanie wiadomości wraz z załącznikami
+     */
     public function send_message() {
         // Sprawdź nonce
         check_ajax_referer('messenger_chat_nonce', 'nonce');
@@ -223,8 +254,9 @@ class WP_Messenger_Chat {
         $recipient_id = isset($_POST['recipient_id']) ? intval($_POST['recipient_id']) : 0;
         $user_id = get_current_user_id();
 
-        if (empty($message)) {
-            wp_send_json_error(array('message' => 'Wiadomość nie może być pusta'));
+        // Sprawdź czy wiadomość lub załącznik istnieje
+        if (empty($message) && empty($_FILES['attachment'])) {
+            wp_send_json_error(array('message' => 'Wiadomość lub załącznik jest wymagany'));
             return;
         }
 
@@ -242,21 +274,35 @@ class WP_Messenger_Chat {
             return;
         }
 
+        // Obsługa załącznika
+        $attachment_path = null;
+        if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] == 0) {
+            $attachment_path = $this->handle_attachment_upload($_FILES['attachment'], $conversation_id);
+            if (is_wp_error($attachment_path)) {
+                wp_send_json_error(array('message' => $attachment_path->get_error_message()));
+                return;
+            }
+        }
+
         // Zapisz wiadomość
         global $wpdb;
         $table_messages = $wpdb->prefix . 'messenger_messages';
         $table_conversations = $wpdb->prefix . 'messenger_conversations';
         $table_participants = $wpdb->prefix . 'messenger_participants';
 
-        $result = $wpdb->insert(
-            $table_messages,
-            array(
-                'conversation_id' => $conversation_id,
-                'sender_id' => $user_id,
-                'message' => $message,
-                'sent_at' => current_time('mysql')
-            )
+        $message_data = array(
+            'conversation_id' => $conversation_id,
+            'sender_id' => $user_id,
+            'message' => $message,
+            'sent_at' => current_time('mysql')
         );
+
+        // Dodaj załącznik, jeśli istnieje
+        if ($attachment_path) {
+            $message_data['attachment'] = $attachment_path;
+        }
+
+        $result = $wpdb->insert($table_messages, $message_data);
 
         // Aktualizuj czas aktualizacji konwersacji
         $wpdb->update(
@@ -298,6 +344,7 @@ class WP_Messenger_Chat {
                     'sender_avatar' => get_avatar_url($user_id),
                     'message' => array(
                         'message' => $message,
+                        'attachment' => $new_message->attachment,
                         'sent_at' => current_time('mysql'),
                         'sender_id' => $user_id,
                         'sender_name' => $sender ? $sender->display_name : 'Nieznany użytkownik',
@@ -329,6 +376,47 @@ class WP_Messenger_Chat {
         } else {
             wp_send_json_error(array('message' => 'Błąd przy zapisywaniu wiadomości'));
         }
+    }
+
+    /**
+     * Obsługuje przesyłanie załączników
+     * 
+     * @param array $file Dane pliku z $_FILES
+     * @param int $conversation_id ID konwersacji
+     * @return string|WP_Error Ścieżka do zapisanego pliku lub obiekt błędu
+     */
+    private function handle_attachment_upload($file, $conversation_id) {
+        // Sprawdź typ pliku
+        $file_type = wp_check_filetype($file['name']);
+        if ($file_type['ext'] !== 'pdf') {
+            return new WP_Error('invalid_file_type', 'Dozwolone są tylko pliki PDF.');
+        }
+
+        // Sprawdź rozmiar pliku (max 5MB)
+        $max_size = 5 * 1024 * 1024; // 5MB
+        if ($file['size'] > $max_size) {
+            return new WP_Error('file_too_large', 'Maksymalny rozmiar pliku to 5MB.');
+        }
+
+        // Utwórz katalog dla konwersacji, jeśli nie istnieje
+        $upload_dir = wp_upload_dir();
+        $conversation_dir = $upload_dir['basedir'] . '/messenger-attachments/' . $conversation_id;
+        if (!file_exists($conversation_dir)) {
+            wp_mkdir_p($conversation_dir);
+        }
+
+        // Generuj unikalną nazwę pliku
+        $filename = sanitize_file_name($file['name']);
+        $filename = wp_unique_filename($conversation_dir, $filename);
+        $new_file = $conversation_dir . '/' . $filename;
+
+        // Przenieś plik do docelowego katalogu
+        if (!move_uploaded_file($file['tmp_name'], $new_file)) {
+            return new WP_Error('upload_error', 'Błąd podczas przesyłania pliku.');
+        }
+
+        // Zwróć względną ścieżkę do pliku (bez ścieżki bazowej)
+        return $conversation_id . '/' . $filename;
     }
     public function create_conversation($user1_id, $user2_id) {
         global $wpdb;

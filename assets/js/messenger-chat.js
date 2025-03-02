@@ -115,6 +115,7 @@
     // Inicjalizacja czatu
     function initChat() {
         connectWebSocket();
+        handleFileSelect();
 
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function () {
@@ -262,13 +263,62 @@
         });
     }
 
+    // Obsługa załączników
+    let selectedFile = null;
+
+    // Obsługa wyboru pliku
+    function handleFileSelect() {
+        $('#messenger-attachment').on('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Sprawdź czy to plik PDF
+            if (file.type !== 'application/pdf') {
+                alert('Dozwolone są tylko pliki PDF.');
+                $(this).val('');
+                return;
+            }
+
+            // Zapisz wybrany plik
+            selectedFile = file;
+
+            // Pokaż podgląd załącznika
+            showAttachmentPreview(file);
+        });
+    }
+
+    // Wyświetlanie podglądu załącznika
+    function showAttachmentPreview(file) {
+        const previewContainer = $('#messenger-attachments-preview');
+        previewContainer.empty();
+
+        const preview = `
+            <div class="attachment-preview">
+                <span class="attachment-icon dashicons dashicons-pdf"></span>
+                <span class="attachment-name">${file.name}</span>
+                <button type="button" class="attachment-remove">
+                    <span class="dashicons dashicons-no-alt"></span>
+                </button>
+            </div>
+        `;
+
+        previewContainer.append(preview);
+
+        // Obsługa usuwania załącznika
+        $('.attachment-remove').on('click', function() {
+            $(this).closest('.attachment-preview').remove();
+            $('#messenger-attachment').val('');
+            selectedFile = null;
+        });
+    }
+
     // Wysyłanie wiadomości
     function sendMessage() {
         const messageText = $('#messenger-message').val().trim();
         const conversationId = $('#messenger-conversation-id').val();
         const recipientId = $('#messenger-recipient-id').val();
 
-        if (messageText === '') {
+        if (messageText === '' && !selectedFile) {
             return;
         }
 
@@ -287,7 +337,8 @@
             sent_at: new Date().toISOString(),
             sender_name: 'Ty',
             sender_avatar: currentUserAvatar,
-            is_mine: true
+            is_mine: true,
+            attachment: selectedFile ? selectedFile.name : null
         };
 
         // Dodaj wiadomość z klasą "sending"
@@ -296,17 +347,30 @@
         // Dodaj klasę "sending" do tymczasowej wiadomości
         $('.message-item').last().addClass('sending');
 
+        // Przygotuj dane do wysłania
+        const formData = new FormData();
+        formData.append('action', 'send_message');
+        formData.append('conversation_id', conversationId);
+        formData.append('recipient_id', recipientId);
+        formData.append('message', messageText);
+        formData.append('nonce', messengerChat.nonce);
+        
+        // Dodaj plik, jeśli został wybrany
+        if (selectedFile) {
+            formData.append('attachment', selectedFile);
+        }
+
+        // Wyczyść podgląd załącznika i zresetuj wybrany plik
+        $('#messenger-attachments-preview').empty();
+        selectedFile = null;
+
         // Wyślij wiadomość przez AJAX
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
-            data: {
-                action: 'send_message',
-                conversation_id: conversationId,
-                recipient_id: recipientId,
-                message: messageText,
-                nonce: messengerChat.nonce
-            },
+            data: formData,
+            processData: false,
+            contentType: false,
             success: function(response) {
                 console.log('Odpowiedź z serwera:', response);
 
@@ -330,6 +394,7 @@
                             id: response.data ? response.data.id : tempMessageId,
                             sender_id: currentUserId,
                             message: messageText,
+                            attachment: response.data && response.data.attachment ? response.data.attachment : null,
                             sent_at: new Date().toISOString(),
                             sender_name: 'Ty',
                             sender_avatar: currentUserAvatar,
@@ -395,6 +460,7 @@
         const senderAvatar = message.sender_avatar || '/wp-content/plugins/wp-messenger-chat/assets/images/default-avatar.png';
         const sentAt = message.sent_at || new Date().toISOString();
         const isMine = !!message.is_mine; // konwersja na boolean
+        const attachment = message.attachment || null;
 
         // Debugowanie
         console.log('Dane wiadomości:', {
@@ -403,7 +469,8 @@
             senderName: senderName,
             senderAvatar: senderAvatar,
             sentAt: sentAt,
-            isMine: isMine
+            isMine: isMine,
+            attachment: attachment
         });
 
         // Określ klasę wiadomości
@@ -416,6 +483,23 @@
                 previousMessage.hasClass('my-message') ||
                 previousMessage.data('sender-id') !== senderId.toString());
 
+        // Przygotuj HTML dla załącznika PDF, jeśli istnieje
+        let attachmentHtml = '';
+        if (attachment) {
+            const attachmentUrl = attachment.startsWith('http') 
+                ? attachment 
+                : `${messengerChat.uploads_url}/${attachment}`;
+                
+            attachmentHtml = `
+                <div class="message-attachment">
+                    <a href="${attachmentUrl}" target="_blank" class="pdf-attachment">
+                        <span class="attachment-icon dashicons dashicons-pdf"></span>
+                        <span class="attachment-name">${attachment.split('/').pop()}</span>
+                    </a>
+                </div>
+            `;
+        }
+
         const messageHtml = `
         <div class="message-item ${messageClass}" data-sender-id="${senderId}">
             ${!isMine ? `
@@ -424,6 +508,7 @@
                 </div>` : ''}
             <div class="message-content">
                 <div class="message-text">${messageContent}</div>
+                ${attachmentHtml}
                 <div class="message-time">${formatTime(sentAt)}</div>
             </div>
         </div>
