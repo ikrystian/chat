@@ -40,6 +40,7 @@ class WP_Messenger_Chat_Database {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            archived tinyint(1) DEFAULT 0 NOT NULL,
             PRIMARY KEY  (id)
         ) $charset_collate;";
 
@@ -63,9 +64,10 @@ class WP_Messenger_Chat_Database {
      * Pobiera konwersacje użytkownika
      *
      * @param int $user_id ID użytkownika
+     * @param bool $archived Czy pobierać zarchiwizowane konwersacje
      * @return array Lista konwersacji
      */
-    public function get_user_conversations($user_id) {
+    public function get_user_conversations($user_id, $archived = false) {
         global $wpdb;
 
         $table_participants = $wpdb->prefix . 'messenger_participants';
@@ -73,7 +75,7 @@ class WP_Messenger_Chat_Database {
         $table_messages = $wpdb->prefix . 'messenger_messages';
 
         $query = "
-            SELECT c.id, c.updated_at, 
+            SELECT c.id, c.updated_at, c.archived,
                 (SELECT m.message FROM {$table_messages} m 
                  WHERE m.conversation_id = c.id 
                  ORDER BY m.sent_at DESC LIMIT 1) as last_message,
@@ -84,11 +86,11 @@ class WP_Messenger_Chat_Database {
                  WHERE p2.conversation_id = c.id AND p2.user_id != %d) as other_user_id
             FROM {$table_conversations} c
             JOIN {$table_participants} p ON c.id = p.conversation_id
-            WHERE p.user_id = %d
+            WHERE p.user_id = %d AND c.archived = %d
             ORDER BY c.updated_at DESC
         ";
 
-        $results = $wpdb->get_results($wpdb->prepare($query, $user_id, $user_id));
+        $results = $wpdb->get_results($wpdb->prepare($query, $user_id, $user_id, $archived ? 1 : 0));
 
         // Dodaj dane użytkowników
         foreach ($results as $conv) {
@@ -259,5 +261,55 @@ class WP_Messenger_Chat_Database {
              WHERE conversation_id = %d AND user_id != %d",
             $conversation_id, $user_id
         ));
+    }
+
+    /**
+     * Archiwizuje konwersację
+     *
+     * @param int $conversation_id ID konwersacji
+     * @param int $user_id ID użytkownika (dla weryfikacji dostępu)
+     * @return bool Czy operacja się powiodła
+     */
+    public function archive_conversation($conversation_id, $user_id) {
+        // Sprawdź czy użytkownik ma dostęp do konwersacji
+        if (!$this->user_in_conversation($user_id, $conversation_id)) {
+            return false;
+        }
+
+        global $wpdb;
+        $table_conversations = $wpdb->prefix . 'messenger_conversations';
+
+        $result = $wpdb->update(
+            $table_conversations,
+            array('archived' => 1),
+            array('id' => $conversation_id)
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Przywraca zarchiwizowaną konwersację
+     *
+     * @param int $conversation_id ID konwersacji
+     * @param int $user_id ID użytkownika (dla weryfikacji dostępu)
+     * @return bool Czy operacja się powiodła
+     */
+    public function unarchive_conversation($conversation_id, $user_id) {
+        // Sprawdź czy użytkownik ma dostęp do konwersacji
+        if (!$this->user_in_conversation($user_id, $conversation_id)) {
+            return false;
+        }
+
+        global $wpdb;
+        $table_conversations = $wpdb->prefix . 'messenger_conversations';
+
+        $result = $wpdb->update(
+            $table_conversations,
+            array('archived' => 0),
+            array('id' => $conversation_id)
+        );
+
+        return $result !== false;
     }
 }

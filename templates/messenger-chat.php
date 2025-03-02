@@ -10,6 +10,7 @@
 
         <div class="messenger-tabs">
             <a href="#" class="active" data-tab="conversations">Konwersacje</a>
+            <a href="#" data-tab="archived">Archiwum</a>
             <a href="#" data-tab="contacts">Kontakty</a>
         </div>
 
@@ -46,9 +47,19 @@
                                 ?>
                             </div>
                         </div>
+                        <div class="conversation-actions">
+                            <button class="archive-conversation" data-conversation-id="<?php echo esc_attr($conversation->id); ?>" title="Archiwizuj">
+                                <span class="dashicons dashicons-archive"></span>
+                            </button>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
+        </div>
+        
+        <!-- Lista zarchiwizowanych konwersacji -->
+        <div class="messenger-archived-list" style="display: none;">
+            <div class="loading-archived">Ładowanie zarchiwizowanych konwersacji...</div>
         </div>
 
         <!-- Lista kontaktów -->
@@ -83,6 +94,9 @@
             <span class="messenger-back-btn">← Wróć</span>
             <h3>Wybierz konwersację</h3>
             <div class="conversation-actions">
+                <button class="toggle-archive-btn" title="Archiwizuj/Przywróć konwersację">
+                    <i class="dashicons dashicons-archive"></i>
+                </button>
                 <button class="info-btn"><i class="dashicons dashicons-info"></i></button>
             </div>
         </div>

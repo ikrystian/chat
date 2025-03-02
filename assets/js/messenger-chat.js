@@ -46,19 +46,27 @@
         });
     }
 
-    // Powiadomienie o nowej wiadomości
-    function notifyNewMessage(conversationId) {
-        // Znajdź konwersację na liście i dodaj wskaźnik nowej wiadomości
-        const conversationItem = $(`.conversation-item[data-conversation-id="${conversationId}"]`);
-        conversationItem.addClass('has-new-message');
-
-        // Opcjonalnie - dodaj dźwięk powiadomienia
-        playNotificationSound();
-
-        // Przenieś konwersację na górę listy
-        const conversationsList = $('.messenger-conversations-list');
-        conversationsList.prepend(conversationItem);
+// Powiadomienie o nowej wiadomości
+function notifyNewMessage(conversationId) {
+    // Znajdź konwersację na liście i dodaj wskaźnik nowej wiadomości
+    const conversationItem = $(`.conversation-item[data-conversation-id="${conversationId}"]`);
+    
+    // Sprawdź, czy konwersacja istnieje na liście
+    if (conversationItem.length === 0) {
+        // Jeśli konwersacja nie istnieje, odśwież całą listę konwersacji
+        refreshConversationsList();
+        return;
     }
+    
+    conversationItem.addClass('has-new-message');
+
+    // Opcjonalnie - dodaj dźwięk powiadomienia
+    playNotificationSound();
+
+    // Przenieś konwersację na górę listy
+    const conversationsList = $('.messenger-conversations-list');
+    conversationsList.prepend(conversationItem);
+}
 
     // Odtwarzanie dźwięku powiadomienia
     function playNotificationSound() {
@@ -117,6 +125,9 @@
     function initChat() {
         connectWebSocket();
         handleFileSelect();
+        
+        // Odśwież listę konwersacji przy inicjalizacji
+        refreshConversationsList();
 
         // Sprawdź, czy w URL jest ID konwersacji (zakodowane base64)
         const urlParams = new URLSearchParams(window.location.search);
@@ -135,6 +146,23 @@
                 openConversation(parseInt(encodedConversationId));
             }
         }
+
+        // Obsługa przycisku archiwizacji/przywracania w nagłówku konwersacji
+        $(document).on('click', '.toggle-archive-btn', function() {
+            const conversationId = $('#messenger-conversation-id').val();
+            if (!conversationId || conversationId === '0') {
+                return; // Nie ma aktywnej konwersacji
+            }
+            
+            // Sprawdź, czy konwersacja jest zarchiwizowana
+            const isArchived = $(this).hasClass('is-archived');
+            
+            if (isArchived) {
+                unarchiveConversation(conversationId);
+            } else {
+                archiveConversation(conversationId);
+            }
+        });
 
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function () {
@@ -215,17 +243,38 @@
             $('.messenger-tabs a').removeClass('active');
             $(this).addClass('active');
 
+            // Ukryj wszystkie listy
+            $('.messenger-conversations-list, .messenger-contacts-list, .messenger-archived-list').hide();
+
             if (tab === 'conversations') {
-                $('.messenger-contacts-list').hide();
                 $('.messenger-conversations-list').show();
-            } else {
-                $('.messenger-conversations-list').hide();
+                // Odśwież listę konwersacji przy przełączeniu na zakładkę konwersacji
+                refreshConversationsList();
+            } else if (tab === 'archived') {
+                $('.messenger-archived-list').show();
+                // Załaduj zarchiwizowane konwersacje
+                loadArchivedConversations();
+            } else if (tab === 'contacts') {
                 $('.messenger-contacts-list').show();
             }
         });
 
+        // Obsługa archiwizacji konwersacji
+        $(document).on('click', '.archive-conversation', function (e) {
+            e.stopPropagation();
+            const conversationId = $(this).data('conversation-id');
+            archiveConversation(conversationId);
+        });
+
+        // Obsługa przywracania zarchiwizowanych konwersacji
+        $(document).on('click', '.unarchive-conversation', function (e) {
+            e.stopPropagation();
+            const conversationId = $(this).data('conversation-id');
+            unarchiveConversation(conversationId);
+        });
+
         // Domyślnie wyświetl listę konwersacji
-        $('.messenger-contacts-list').hide();
+        $('.messenger-contacts-list, .messenger-archived-list').hide();
     }
 
     // Otwieranie konwersacji
@@ -244,6 +293,20 @@
         // Ukryj pole recipient_id (nie jest potrzebne dla istniejącej konwersacji)
         $('#messenger-recipient-id').val('');
         $('#messenger-conversation-id').val(conversationId);
+        
+        // Sprawdź, czy konwersacja jest zarchiwizowana
+        const isArchived = $(`.conversation-item[data-conversation-id="${conversationId}"]`).hasClass('archived');
+        const toggleArchiveBtn = $('.toggle-archive-btn');
+        
+        if (isArchived) {
+            toggleArchiveBtn.addClass('is-archived');
+            toggleArchiveBtn.attr('title', 'Przywróć konwersację');
+            toggleArchiveBtn.find('i').removeClass('dashicons-archive').addClass('dashicons-undo');
+        } else {
+            toggleArchiveBtn.removeClass('is-archived');
+            toggleArchiveBtn.attr('title', 'Archiwizuj konwersację');
+            toggleArchiveBtn.find('i').removeClass('dashicons-undo').addClass('dashicons-archive');
+        }
 
         // Pobierz wiadomości
         $.ajax({
@@ -450,6 +513,11 @@
     }
 
     function refreshConversationsList() {
+        console.log('Odświeżanie listy konwersacji...');
+        
+        // Pokaż wskaźnik ładowania, jeśli istnieje
+        $('.messenger-conversations-loading').show();
+        
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
@@ -458,10 +526,28 @@
                 nonce: messengerChat.nonce
             },
             success: function(response) {
+                // Ukryj wskaźnik ładowania
+                $('.messenger-conversations-loading').hide();
+                
                 if (response.success) {
                     // Zaktualizuj listę konwersacji
                     $('.messenger-conversations-list').html(response.data);
+                    
+                    // Zaznacz aktywną konwersację, jeśli istnieje
+                    if (activeConversation > 0) {
+                        $(`.conversation-item[data-conversation-id="${activeConversation}"]`).addClass('active');
+                    }
+                    
+                    console.log('Lista konwersacji została zaktualizowana');
+                } else {
+                    console.error('Błąd podczas odświeżania listy konwersacji:', response.data);
                 }
+            },
+            error: function(xhr, status, error) {
+                // Ukryj wskaźnik ładowania
+                $('.messenger-conversations-loading').hide();
+                
+                console.error('Błąd AJAX podczas odświeżania listy konwersacji:', status, error);
             }
         });
     }
@@ -612,6 +698,146 @@
         messagesContainer.stop().animate({
             scrollTop: messagesContainer[0].scrollHeight
         }, 300);
+    }
+    
+    // Archiwizacja konwersacji
+    function archiveConversation(conversationId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'archive_conversation',
+                conversation_id: conversationId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Jeśli to aktywna konwersacja, zaktualizuj przycisk w nagłówku
+                    if (activeConversation === parseInt(conversationId)) {
+                        const toggleArchiveBtn = $('.toggle-archive-btn');
+                        toggleArchiveBtn.addClass('is-archived');
+                        toggleArchiveBtn.attr('title', 'Przywróć konwersację');
+                        toggleArchiveBtn.find('i').removeClass('dashicons-archive').addClass('dashicons-undo');
+                    }
+                    
+                    // Usuń konwersację z listy aktywnych
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                        $(this).remove();
+                        
+                        // Jeśli to była aktywna konwersacja, wyczyść obszar czatu
+                        if (activeConversation === parseInt(conversationId)) {
+                            // Nie resetujemy activeConversation, aby przycisk archiwizacji działał poprawnie
+                            // Użytkownik może przywrócić konwersację bezpośrednio z nagłówka
+                        }
+                    });
+                    
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Konwersacja została zarchiwizowana');
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się zarchiwizować konwersacji', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas archiwizacji konwersacji', 'error');
+            }
+        });
+    }
+    
+    // Przywracanie zarchiwizowanej konwersacji
+    function unarchiveConversation(conversationId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'unarchive_conversation',
+                conversation_id: conversationId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Jeśli to aktywna konwersacja, zaktualizuj przycisk w nagłówku
+                    if (activeConversation === parseInt(conversationId)) {
+                        const toggleArchiveBtn = $('.toggle-archive-btn');
+                        toggleArchiveBtn.removeClass('is-archived');
+                        toggleArchiveBtn.attr('title', 'Archiwizuj konwersację');
+                        toggleArchiveBtn.find('i').removeClass('dashicons-undo').addClass('dashicons-archive');
+                    }
+                    
+                    // Usuń konwersację z listy zarchiwizowanych
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                    
+                    // Odśwież listę aktywnych konwersacji
+                    refreshConversationsList();
+                    
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Konwersacja została przywrócona');
+                    
+                    // Przełącz na zakładkę konwersacji
+                    $('.messenger-tabs a[data-tab="conversations"]').click();
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się przywrócić konwersacji', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas przywracania konwersacji', 'error');
+            }
+        });
+    }
+    
+    // Ładowanie zarchiwizowanych konwersacji
+    function loadArchivedConversations() {
+        // Pokaż wskaźnik ładowania
+        $('.messenger-archived-list').html('<div class="loading-archived">Ładowanie zarchiwizowanych konwersacji...</div>');
+        
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'get_archived_conversations',
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Zaktualizuj listę zarchiwizowanych konwersacji
+                    $('.messenger-archived-list').html(response.data);
+                } else {
+                    // Pokaż błąd
+                    $('.messenger-archived-list').html('<div class="error-message">Błąd podczas ładowania zarchiwizowanych konwersacji</div>');
+                }
+            },
+            error: function() {
+                $('.messenger-archived-list').html('<div class="error-message">Błąd podczas ładowania zarchiwizowanych konwersacji</div>');
+            }
+        });
+    }
+    
+    // Wyświetlanie powiadomień
+    function showNotification(message, type = 'success') {
+        // Usuń istniejące powiadomienia
+        $('.messenger-notification').remove();
+        
+        // Utwórz nowe powiadomienie
+        const notification = $(`<div class="messenger-notification ${type}">${message}</div>`);
+        
+        // Dodaj do DOM
+        $('body').append(notification);
+        
+        // Pokaż powiadomienie
+        setTimeout(function() {
+            notification.addClass('show');
+        }, 10);
+        
+        // Ukryj po 3 sekundach
+        setTimeout(function() {
+            notification.removeClass('show');
+            setTimeout(function() {
+                notification.remove();
+            }, 300);
+        }, 3000);
     }
 
     // Inicjalizacja po załadowaniu dokumentu
