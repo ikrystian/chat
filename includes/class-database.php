@@ -31,7 +31,6 @@ class WP_Messenger_Chat_Database {
             message text NOT NULL,
             attachment varchar(255) DEFAULT NULL,
             sent_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            read_at datetime DEFAULT NULL,
             PRIMARY KEY  (id)
         ) $charset_collate;";
 
@@ -134,9 +133,6 @@ class WP_Messenger_Chat_Database {
             $message->sender_avatar = get_avatar_url($message->sender_id);
             $message->is_mine = ($message->sender_id == $user_id);
         }
-
-        // Oznacz jako przeczytane
-        $this->mark_messages_as_read($conversation_id, $user_id);
 
         return $messages;
     }
@@ -245,25 +241,7 @@ class WP_Messenger_Chat_Database {
         return intval($count) > 0;
     }
 
-    /**
-     * Oznacza wiadomości jako przeczytane
-     *
-     * @param int $conversation_id ID konwersacji
-     * @param int $user_id ID użytkownika
-     */
-    public function mark_messages_as_read($conversation_id, $user_id) {
-        global $wpdb;
-        $table_messages = $wpdb->prefix . 'messenger_messages';
 
-        $wpdb->query($wpdb->prepare(
-            "UPDATE {$table_messages} 
-             SET read_at = %s 
-             WHERE conversation_id = %d 
-             AND sender_id != %d 
-             AND read_at IS NULL",
-            current_time('mysql'), $conversation_id, $user_id
-        ));
-    }
 
     /**
      * Pobiera ID odbiorcy (drugiego uczestnika konwersacji)

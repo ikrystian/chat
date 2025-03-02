@@ -27,20 +27,9 @@
                 // Przewiń do najnowszej wiadomości
                 scrollToBottom();
                 
-                // Oznacz wiadomość jako przeczytaną w czasie rzeczywistym
-                markMessageAsRead(data.conversation_id, data.message.sender_id);
             } else {
                 // Powiadomienie o nowej wiadomości w innej konwersacji
                 notifyNewMessage(data.conversation_id);
-            }
-        });
-
-        socket.on('message_read', function (data) {
-            console.log('Wiadomość przeczytana:', data);
-            
-            if (data.conversation_id === activeConversation) {
-                // Aktualizuj status przeczytania dla wszystkich wiadomości w konwersacji
-                updateReadStatus(data.conversation_id, data.read_at);
             }
         });
 
@@ -494,7 +483,6 @@
         const sentAt = message.sent_at || new Date().toISOString();
         const isMine = !!message.is_mine; // konwersja na boolean
         const attachment = message.attachment || null;
-        const readAt = message.read_at || null;
 
         // Debugowanie
         console.log('Dane wiadomości:', {
@@ -531,62 +519,25 @@
             `;
         }
 
-        // Przygotuj HTML dla statusu przeczytania, jeśli wiadomość jest moja i została przeczytana
-        let readStatusHtml = '';
-        if (isMine && readAt) {
-            readStatusHtml = '<div class="message-read-status">Przeczytano</div>';
-        }
-
         const messageHtml = `
         <div class="message-item ${messageClass}" data-sender-id="${senderId}">
             ${!isMine ? `
-                <div class="message-avatar" style="visibility: hidden;">
+                <div class="message-avatar">
                     <img src="${senderAvatar}" alt="${senderName}">
                 </div>` : ''}
             <div class="message-content">
                 <div class="message-text">${messageContent}</div>
                 ${attachmentHtml}
                 <div class="message-time">${formatTime(sentAt)}</div>
-                ${readStatusHtml}
             </div>
         </div>
     `;
 
         $('.messenger-messages').append(messageHtml);
         
-        // Aktualizuj widoczność avatarów po dodaniu nowej wiadomości
-        updateAvatarsVisibility();
-        
         scrollToBottom();
     }
     
-    // Funkcja aktualizująca widoczność avatarów - pokazuje avatar tylko przy ostatniej wiadomości od danego nadawcy
-    function updateAvatarsVisibility() {
-        // Pobierz wszystkie wiadomości pogrupowane według nadawcy
-        const messageGroups = {};
-        
-        // Przejdź przez wszystkie wiadomości i pogrupuj je według nadawcy
-        $('.message-item.their-message').each(function() {
-            const senderId = $(this).data('sender-id');
-            if (!messageGroups[senderId]) {
-                messageGroups[senderId] = [];
-            }
-            messageGroups[senderId].push($(this));
-        });
-        
-        // Dla każdej grupy wiadomości od tego samego nadawcy
-        Object.values(messageGroups).forEach(function(messages) {
-            // Ukryj avatary we wszystkich wiadomościach
-            messages.forEach(function(message) {
-                message.find('.message-avatar').css('visibility', 'hidden');
-            });
-            
-            // Pokaż avatar tylko w ostatniej wiadomości od danego nadawcy
-            if (messages.length > 0) {
-                messages[messages.length - 1].find('.message-avatar').css('visibility', 'visible');
-            }
-        });
-    }
     // Formatowanie czasu
     function formatTime(timeString) {
         try {
@@ -635,35 +586,6 @@
             console.error('Błąd formatowania czasu:', e);
             return 'teraz';
         }
-    }
-
-    // Oznaczanie wiadomości jako przeczytanej
-    function markMessageAsRead(conversationId, senderId) {
-        // Wyślij powiadomienie o przeczytaniu przez AJAX
-        $.ajax({
-            url: messengerChat.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'mark_message_read',
-                conversation_id: conversationId,
-                sender_id: senderId,
-                nonce: messengerChat.nonce
-            },
-            success: function(response) {
-                console.log('Wiadomość oznaczona jako przeczytana:', response);
-            }
-        });
-    }
-
-    // Aktualizacja statusu przeczytania wiadomości
-    function updateReadStatus(conversationId, readAt) {
-        // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
-        $('.message-item.my-message').each(function() {
-            // Dodaj wskaźnik przeczytania, jeśli jeszcze nie istnieje
-            if (!$(this).find('.message-read-status').length) {
-                $(this).find('.message-time').after('<div class="message-read-status">Przeczytano</div>');
-            }
-        });
     }
 
     // Aktualizacja URL z ID konwersacji (zakodowane base64)
