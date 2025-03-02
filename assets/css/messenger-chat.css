@@ -223,3 +223,29 @@
         background-color: white;
     }
 }
+/* Style dla przycisku czatu */
+.messenger-chat-button {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #0084ff;
+    color: #fff;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.messenger-chat-button:hover {
+    background-color: #006acc;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.messenger-chat-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
