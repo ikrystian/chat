@@ -129,13 +129,22 @@
         connectWebSocket();
         handleFileSelect();
 
-        // Sprawdź, czy w URL jest ID konwersacji
+        // Sprawdź, czy w URL jest ID konwersacji (zakodowane base64)
         const urlParams = new URLSearchParams(window.location.search);
-        const conversationIdFromUrl = urlParams.get('conversation');
+        const encodedConversationId = urlParams.get('conversation');
         
-        if (conversationIdFromUrl) {
-            // Otwórz konwersację z URL
-            openConversation(parseInt(conversationIdFromUrl));
+        if (encodedConversationId) {
+            try {
+                // Dekoduj ID konwersacji z base64
+                const conversationIdFromUrl = atob(encodedConversationId);
+                // Otwórz konwersację z URL
+                openConversation(parseInt(conversationIdFromUrl));
+            } catch (e) {
+                // Obsługa błędu dekodowania (np. gdy URL zawiera niezakodowane ID)
+                console.error('Błąd dekodowania ID konwersacji:', e);
+                // Spróbuj otworzyć konwersację traktując parametr jako niezakodowane ID
+                openConversation(parseInt(encodedConversationId));
+            }
         }
 
         // Obsługa kliknięcia na konwersację
@@ -503,10 +512,7 @@
 
         // Pobierz poprzednią wiadomość i sprawdź, czy jest od tego samego nadawcy
         const previousMessage = $('.message-item').last();
-        const showAvatar = !isMine &&
-            (!previousMessage.length ||
-                previousMessage.hasClass('my-message') ||
-                previousMessage.data('sender-id') !== senderId.toString());
+        const showAvatar = false; // Domyślnie ukrywamy avatar, później go pokażemy jeśli to ostatnia wiadomość
 
         // Przygotuj HTML dla załącznika PDF, jeśli istnieje
         let attachmentHtml = '';
@@ -534,7 +540,7 @@
         const messageHtml = `
         <div class="message-item ${messageClass}" data-sender-id="${senderId}">
             ${!isMine ? `
-                <div class="message-avatar" ${!showAvatar ? 'style="visibility: hidden;"' : ''}>
+                <div class="message-avatar" style="visibility: hidden;">
                     <img src="${senderAvatar}" alt="${senderName}">
                 </div>` : ''}
             <div class="message-content">
@@ -547,7 +553,39 @@
     `;
 
         $('.messenger-messages').append(messageHtml);
+        
+        // Aktualizuj widoczność avatarów po dodaniu nowej wiadomości
+        updateAvatarsVisibility();
+        
         scrollToBottom();
+    }
+    
+    // Funkcja aktualizująca widoczność avatarów - pokazuje avatar tylko przy ostatniej wiadomości od danego nadawcy
+    function updateAvatarsVisibility() {
+        // Pobierz wszystkie wiadomości pogrupowane według nadawcy
+        const messageGroups = {};
+        
+        // Przejdź przez wszystkie wiadomości i pogrupuj je według nadawcy
+        $('.message-item.their-message').each(function() {
+            const senderId = $(this).data('sender-id');
+            if (!messageGroups[senderId]) {
+                messageGroups[senderId] = [];
+            }
+            messageGroups[senderId].push($(this));
+        });
+        
+        // Dla każdej grupy wiadomości od tego samego nadawcy
+        Object.values(messageGroups).forEach(function(messages) {
+            // Ukryj avatary we wszystkich wiadomościach
+            messages.forEach(function(message) {
+                message.find('.message-avatar').css('visibility', 'hidden');
+            });
+            
+            // Pokaż avatar tylko w ostatniej wiadomości od danego nadawcy
+            if (messages.length > 0) {
+                messages[messages.length - 1].find('.message-avatar').css('visibility', 'visible');
+            }
+        });
     }
     // Formatowanie czasu
     function formatTime(timeString) {
@@ -628,15 +666,18 @@
         });
     }
 
-    // Aktualizacja URL z ID konwersacji
+    // Aktualizacja URL z ID konwersacji (zakodowane base64)
     function updateUrlWithConversationId(conversationId) {
         if (!conversationId) return;
         
         // Utwórz nowy obiekt URLSearchParams z bieżącego URL
         const urlParams = new URLSearchParams(window.location.search);
         
+        // Zakoduj ID konwersacji za pomocą base64
+        const encodedId = btoa(conversationId.toString());
+        
         // Ustaw parametr conversation
-        urlParams.set('conversation', conversationId);
+        urlParams.set('conversation', encodedId);
         
         // Zaktualizuj URL bez przeładowania strony
         const newUrl = window.location.pathname + '?' + urlParams.toString();
