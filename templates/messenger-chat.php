@@ -11,6 +11,7 @@
         <div class="messenger-tabs">
             <a href="#" class="active" data-tab="conversations">Konwersacje</a>
             <a href="#" data-tab="archived">Archiwum</a>
+            <a href="#" data-tab="deleted">Usunięte</a>
             <a href="#" data-tab="contacts">Kontakty</a>
         </div>
 
@@ -61,6 +62,11 @@
         <div class="messenger-archived-list" style="display: none;">
             <div class="loading-archived">Ładowanie zarchiwizowanych konwersacji...</div>
         </div>
+        
+        <!-- Lista usuniętych konwersacji -->
+        <div class="messenger-deleted-list" style="display: none;">
+            <div class="loading-deleted">Ładowanie usuniętych konwersacji...</div>
+        </div>
 
         <!-- Lista kontaktów -->
         <div class="messenger-contacts-list">
@@ -96,6 +102,9 @@
             <div class="conversation-actions">
                 <button class="toggle-archive-btn" title="Archiwizuj/Przywróć konwersację">
                     <i class="dashicons dashicons-archive"></i>
+                </button>
+                <button class="delete-conversation-btn" title="Usuń konwersację">
+                    <i class="dashicons dashicons-trash"></i>
                 </button>
                 <button class="info-btn"><i class="dashicons dashicons-info"></i></button>
             </div>

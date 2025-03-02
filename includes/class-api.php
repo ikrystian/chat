@@ -39,6 +39,15 @@ class WP_Messenger_Chat_API {
         
         // Ajax dla pobrania zarchiwizowanych konwersacji
         add_action('wp_ajax_get_archived_conversations', array($this, 'get_archived_conversations'));
+        
+        // Ajax dla usuwania konwersacji (soft delete)
+        add_action('wp_ajax_delete_conversation', array($this, 'delete_conversation'));
+        
+        // Ajax dla przywracania usuniętej konwersacji
+        add_action('wp_ajax_restore_conversation', array($this, 'restore_conversation'));
+        
+        // Ajax dla pobrania usuniętych konwersacji
+        add_action('wp_ajax_get_deleted_conversations', array($this, 'get_deleted_conversations'));
     }
 
     /**
@@ -305,6 +314,108 @@ class WP_Messenger_Chat_API {
                     </div>
                     <div class="conversation-actions">
                         <button class="unarchive-conversation" data-conversation-id="<?php echo esc_attr($conv->id); ?>">
+                            <span class="dashicons dashicons-undo"></span>
+                        </button>
+                    </div>
+                </div>
+                <?php
+            }
+        }
+        
+        $html = ob_get_clean();
+        wp_send_json_success($html);
+    }
+    
+    /**
+     * Obsługuje usuwanie konwersacji (soft delete)
+     */
+    public function delete_conversation() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if ($conversation_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID konwersacji'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Usuń konwersację (soft delete)
+        $result = $database->delete_conversation($conversation_id, $user_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => 'Konwersacja została usunięta'));
+        } else {
+            wp_send_json_error(array('message' => 'Nie udało się usunąć konwersacji'));
+        }
+    }
+    
+    /**
+     * Obsługuje przywracanie usuniętej konwersacji
+     */
+    public function restore_conversation() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if ($conversation_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID konwersacji'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Przywróć usuniętą konwersację
+        $result = $database->restore_conversation($conversation_id, $user_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => 'Konwersacja została przywrócona'));
+        } else {
+            wp_send_json_error(array('message' => 'Nie udało się przywrócić konwersacji'));
+        }
+    }
+    
+    /**
+     * Obsługuje pobieranie usuniętych konwersacji
+     */
+    public function get_deleted_conversations() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $user_id = get_current_user_id();
+        
+        // Pobierz usunięte konwersacje
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        $conversations = $database->get_deleted_conversations($user_id);
+        
+        // Przygotuj HTML z listą konwersacji
+        ob_start();
+        
+        if (empty($conversations)) {
+            echo '<div class="no-conversations">Brak usuniętych konwersacji</div>';
+        } else {
+            foreach ($conversations as $conv) {
+                ?>
+                <div class="conversation-item deleted" data-conversation-id="<?php echo esc_attr($conv->id); ?>" data-recipient-id="<?php echo esc_attr($conv->other_user_id); ?>">
+                    <div class="conversation-avatar">
+                        <img src="<?php echo esc_url($conv->other_user_avatar); ?>" alt="<?php echo esc_attr($conv->other_user_name); ?>">
+                    </div>
+                    <div class="conversation-info">
+                        <div class="user-name"><?php echo esc_html($conv->other_user_name); ?></div>
+                        <div class="last-message"><?php echo esc_html($conv->last_message); ?></div>
+                    </div>
+                    <div class="conversation-actions">
+                        <button class="restore-conversation" data-conversation-id="<?php echo esc_attr($conv->id); ?>">
                             <span class="dashicons dashicons-undo"></span>
                         </button>
                     </div>

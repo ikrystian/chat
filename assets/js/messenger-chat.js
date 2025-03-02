@@ -260,6 +260,18 @@ function notifyNewMessage(conversationId) {
                 archiveConversation(conversationId);
             }
         });
+        
+        // Obsługa przycisku usuwania w nagłówku konwersacji
+        $(document).on('click', '.delete-conversation-btn', function() {
+            const conversationId = $('#messenger-conversation-id').val();
+            if (!conversationId || conversationId === '0') {
+                return; // Nie ma aktywnej konwersacji
+            }
+            
+            if (confirm('Czy na pewno chcesz usunąć tę konwersację?')) {
+                deleteConversation(conversationId);
+            }
+        });
 
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function () {
@@ -341,7 +353,7 @@ function notifyNewMessage(conversationId) {
             $(this).addClass('active');
 
             // Ukryj wszystkie listy
-            $('.messenger-conversations-list, .messenger-contacts-list, .messenger-archived-list').hide();
+            $('.messenger-conversations-list, .messenger-contacts-list, .messenger-archived-list, .messenger-deleted-list').hide();
 
             if (tab === 'conversations') {
                 $('.messenger-conversations-list').show();
@@ -351,6 +363,10 @@ function notifyNewMessage(conversationId) {
                 $('.messenger-archived-list').show();
                 // Załaduj zarchiwizowane konwersacje
                 loadArchivedConversations();
+            } else if (tab === 'deleted') {
+                $('.messenger-deleted-list').show();
+                // Załaduj usunięte konwersacje
+                loadDeletedConversations();
             } else if (tab === 'contacts') {
                 $('.messenger-contacts-list').show();
             }
@@ -369,9 +385,16 @@ function notifyNewMessage(conversationId) {
             const conversationId = $(this).data('conversation-id');
             unarchiveConversation(conversationId);
         });
+        
+        // Obsługa przywracania usuniętych konwersacji
+        $(document).on('click', '.restore-conversation', function (e) {
+            e.stopPropagation();
+            const conversationId = $(this).data('conversation-id');
+            restoreConversation(conversationId);
+        });
 
         // Domyślnie wyświetl listę konwersacji
-        $('.messenger-contacts-list, .messenger-archived-list').hide();
+        $('.messenger-contacts-list, .messenger-archived-list, .messenger-deleted-list').hide();
     }
 
     // Otwieranie konwersacji
@@ -908,6 +931,111 @@ function notifyNewMessage(conversationId) {
             },
             error: function() {
                 $('.messenger-archived-list').html('<div class="error-message">Błąd podczas ładowania zarchiwizowanych konwersacji</div>');
+            }
+        });
+    }
+    
+    // Usuwanie konwersacji (soft delete)
+    function deleteConversation(conversationId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'delete_conversation',
+                conversation_id: conversationId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Usuń konwersację z listy
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                    
+                    // Jeśli to była aktywna konwersacja, wyczyść obszar czatu
+                    if (activeConversation === parseInt(conversationId)) {
+                        // Wyczyść obszar czatu
+                        $('.messenger-messages').empty();
+                        $('.conversation-header h3').text('');
+                        $('#messenger-conversation-id').val(0);
+                        activeConversation = 0;
+                    }
+                    
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Konwersacja została usunięta');
+                    
+                    // Odśwież listę konwersacji
+                    refreshConversationsList();
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się usunąć konwersacji', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas usuwania konwersacji', 'error');
+            }
+        });
+    }
+    
+    // Przywracanie usuniętej konwersacji
+    function restoreConversation(conversationId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'restore_conversation',
+                conversation_id: conversationId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Usuń konwersację z listy usuniętych
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                    
+                    // Odśwież listę aktywnych konwersacji
+                    refreshConversationsList();
+                    
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Konwersacja została przywrócona');
+                    
+                    // Przełącz na zakładkę konwersacji
+                    $('.messenger-tabs a[data-tab="conversations"]').click();
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się przywrócić konwersacji', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas przywracania konwersacji', 'error');
+            }
+        });
+    }
+    
+    // Ładowanie usuniętych konwersacji
+    function loadDeletedConversations() {
+        // Pokaż wskaźnik ładowania
+        $('.messenger-deleted-list').html('<div class="loading-deleted">Ładowanie usuniętych konwersacji...</div>');
+        
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'get_deleted_conversations',
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Zaktualizuj listę usuniętych konwersacji
+                    $('.messenger-deleted-list').html(response.data);
+                } else {
+                    // Pokaż błąd
+                    $('.messenger-deleted-list').html('<div class="error-message">Błąd podczas ładowania usuniętych konwersacji</div>');
+                }
+            },
+            error: function() {
+                $('.messenger-deleted-list').html('<div class="error-message">Błąd podczas ładowania usuniętych konwersacji</div>');
             }
         });
     }
