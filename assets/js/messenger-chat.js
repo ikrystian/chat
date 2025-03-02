@@ -121,10 +121,107 @@ function notifyNewMessage(conversationId) {
         return conversationItem.data('recipient-id');
     }
 
+    // Inicjalizacja emoji pickera
+    function initEmojiPicker() {
+        // Sprawdź, czy biblioteka emoji-picker-element jest już załadowana
+        if (typeof customElements.get('emoji-picker') === 'undefined') {
+            // Jeśli nie, załaduj bibliotekę dynamicznie
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js';
+            script.type = 'module';
+            document.head.appendChild(script);
+            
+            // Dodaj style dla emoji-picker-element
+            const style = document.createElement('link');
+            style.rel = 'stylesheet';
+            style.href = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.css';
+            document.head.appendChild(style);
+            
+            // Poczekaj na załadowanie biblioteki
+            script.onload = function() {
+                createEmojiPicker();
+            };
+        } else {
+            createEmojiPicker();
+        }
+    }
+    
+    // Tworzenie i konfiguracja emoji pickera
+    function createEmojiPicker() {
+        const emojiPickerContainer = document.getElementById('emoji-picker-container');
+        
+        // Sprawdź, czy kontener istnieje i czy nie zawiera już emoji-picker
+        if (emojiPickerContainer && !emojiPickerContainer.querySelector('emoji-picker')) {
+            // Utwórz element emoji-picker
+            const picker = document.createElement('emoji-picker');
+            emojiPickerContainer.appendChild(picker);
+            
+            // Obsługa wyboru emoji
+            picker.addEventListener('emoji-click', event => {
+                const messageTextarea = document.getElementById('messenger-message');
+                const emoji = event.detail.unicode;
+                
+                // Wstaw emoji w miejscu kursora
+                const start = messageTextarea.selectionStart;
+                const end = messageTextarea.selectionEnd;
+                const text = messageTextarea.value;
+                const before = text.substring(0, start);
+                const after = text.substring(end, text.length);
+                
+                messageTextarea.value = before + emoji + after;
+                
+                // Ustaw kursor za wstawionym emoji
+                messageTextarea.selectionStart = messageTextarea.selectionEnd = start + emoji.length;
+                
+                // Ukryj picker po wyborze emoji
+                toggleEmojiPicker(false);
+                
+                // Ustaw focus na textarea
+                messageTextarea.focus();
+            });
+            
+            // Obsługa kliknięcia przycisku emoji
+            document.getElementById('messenger-emoji-btn').addEventListener('click', function(e) {
+                e.preventDefault();
+                toggleEmojiPicker();
+            });
+            
+            // Zamknij picker po kliknięciu poza nim
+            document.addEventListener('click', function(e) {
+                const emojiBtn = document.getElementById('messenger-emoji-btn');
+                const emojiPicker = document.querySelector('emoji-picker');
+                
+                if (emojiPicker && 
+                    !emojiPicker.contains(e.target) && 
+                    e.target !== emojiBtn && 
+                    !emojiBtn.contains(e.target)) {
+                    toggleEmojiPicker(false);
+                }
+            });
+        }
+    }
+    
+    // Przełączanie widoczności emoji pickera
+    function toggleEmojiPicker(forceState) {
+        const picker = document.querySelector('emoji-picker');
+        if (picker) {
+            if (forceState !== undefined) {
+                if (forceState) {
+                    picker.classList.add('visible');
+                } else {
+                    picker.classList.remove('visible');
+                }
+            } else {
+                picker.classList.toggle('visible');
+            }
+        }
+    }
+
     // Inicjalizacja czatu
     function initChat() {
         connectWebSocket();
         handleFileSelect();
+        initEmojiPicker();
         
         // Odśwież listę konwersacji przy inicjalizacji
         refreshConversationsList();

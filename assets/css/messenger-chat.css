@@ -470,7 +470,7 @@
     align-items: center;
 }
 
-.messenger-attachment-btn {
+.messenger-attachment-btn, .messenger-emoji-btn {
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -485,7 +485,7 @@
     transition: all 0.2s;
 }
 
-.messenger-attachment-btn:hover {
+.messenger-attachment-btn:hover, .messenger-emoji-btn:hover {
     background-color: #e4e6eb;
 }
 
@@ -704,6 +704,26 @@
 .messenger-chat-button:active {
     transform: translateY(0);
     box-shadow: 0 2px 5px rgba(0, 132, 255, 0.3);
+}
+
+/* Emoji Picker */
+#emoji-picker-container {
+    position: relative;
+    margin-top: 10px;
+}
+
+#emoji-picker-container emoji-picker {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    z-index: 100;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    display: none;
+}
+
+#emoji-picker-container emoji-picker.visible {
+    display: block;
 }
 
 /* Responsywny wygląd dla urządzeń mobilnych */

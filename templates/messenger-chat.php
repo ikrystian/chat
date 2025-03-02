@@ -118,10 +118,14 @@
                         <i class="dashicons dashicons-paperclip"></i>
                         <input type="file" id="messenger-attachment" accept=".pdf" style="display: none;">
                     </label>
+                    <button type="button" id="messenger-emoji-btn" class="messenger-emoji-btn">
+                        <i class="dashicons dashicons-smiley"></i>
+                    </button>
                     <button type="submit" id="messenger-send-btn">
                         <i class="dashicons dashicons-arrow-right-alt2"></i>
                     </button>
                 </div>
+                <div id="emoji-picker-container"></div>
             </form>
         </div>
     </div>
