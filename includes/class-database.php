@@ -92,8 +92,17 @@ class WP_Messenger_Chat_Database {
 
         $results = $wpdb->get_results($wpdb->prepare($query, $user_id, $user_id, $archived ? 1 : 0));
 
-        // Dodaj dane użytkowników
+        // Załaduj klasę szyfrowania
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-encryption.php';
+        $encryption = new WP_Messenger_Chat_Encryption();
+
+        // Dodaj dane użytkowników i odszyfruj ostatnią wiadomość
         foreach ($results as $conv) {
+            // Odszyfruj ostatnią wiadomość
+            if (!empty($conv->last_message)) {
+                $conv->last_message = $encryption->decrypt($conv->last_message);
+            }
+            
             if ($conv->other_user_id) {
                 $user = get_userdata($conv->other_user_id);
                 $conv->other_user_name = $user ? $user->display_name : 'Nieznany użytkownik';
@@ -128,8 +137,15 @@ class WP_Messenger_Chat_Database {
             $conversation_id
         ));
 
-        // Dodaj dane użytkowników
+        // Załaduj klasę szyfrowania
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-encryption.php';
+        $encryption = new WP_Messenger_Chat_Encryption();
+
+        // Dodaj dane użytkowników i odszyfruj wiadomości
         foreach ($messages as $message) {
+            // Odszyfruj wiadomość
+            $message->message = $encryption->decrypt($message->message);
+            
             $sender = get_userdata($message->sender_id);
             $message->sender_name = $sender ? $sender->display_name : 'Nieznany';
             $message->sender_avatar = get_avatar_url($message->sender_id);
@@ -149,6 +165,15 @@ class WP_Messenger_Chat_Database {
         global $wpdb;
         $table_messages = $wpdb->prefix . 'messenger_messages';
         $table_conversations = $wpdb->prefix . 'messenger_conversations';
+
+        // Załaduj klasę szyfrowania
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-encryption.php';
+        $encryption = new WP_Messenger_Chat_Encryption();
+
+        // Zaszyfruj wiadomość przed zapisaniem
+        if (isset($message_data['message']) && !empty($message_data['message'])) {
+            $message_data['message'] = $encryption->encrypt($message_data['message']);
+        }
 
         $result = $wpdb->insert($table_messages, $message_data);
 

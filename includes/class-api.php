@@ -133,6 +133,9 @@ class WP_Messenger_Chat_API {
         
         require_once WP_MESSENGER_CHAT_DIR . 'includes/class-websocket.php';
         $websocket = new WP_Messenger_Chat_WebSocket();
+        
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-encryption.php';
+        $encryption = new WP_Messenger_Chat_Encryption();
 
         $is_new_conversation = false;
 
@@ -181,6 +184,9 @@ class WP_Messenger_Chat_API {
                 "SELECT * FROM {$table_messages} WHERE id = %d",
                 $message_id
             ));
+
+            // Odszyfruj wiadomość przed wysłaniem przez WebSocket
+            $new_message->message = $encryption->decrypt($new_message->message);
 
             // Dodaj dane nadawcy
             $sender = get_userdata($user_id);

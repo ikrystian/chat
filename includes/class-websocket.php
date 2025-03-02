@@ -24,6 +24,9 @@ class WP_Messenger_Chat_WebSocket {
      * @return bool Czy wysłano pomyślnie
      */
     public function send_message($conversation_id, $recipient_id, $message) {
+        // Upewnij się, że wiadomość jest odszyfrowana przed wysłaniem przez WebSocket
+        // Wiadomość jest już odszyfrowana w klasie API przed wywołaniem tej metody
+        
         // Dane dla istniejącej konwersacji
         $socket_data = array(
             'conversation_id' => $conversation_id,
@@ -45,6 +48,9 @@ class WP_Messenger_Chat_WebSocket {
      * @return bool Czy wysłano pomyślnie
      */
     public function send_new_conversation($conversation_id, $recipient_id, $sender_id, $sender, $message) {
+        // Upewnij się, że wiadomość jest odszyfrowana przed wysłaniem przez WebSocket
+        // Wiadomość jest już odszyfrowana w klasie API przed wywołaniem tej metody
+        
         // Dane dla nowej konwersacji
         $socket_data = array(
             'conversation_id' => $conversation_id,
