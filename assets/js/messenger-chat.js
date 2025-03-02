@@ -26,9 +26,21 @@
 
                 // Przewiń do najnowszej wiadomości
                 scrollToBottom();
+                
+                // Oznacz wiadomość jako przeczytaną w czasie rzeczywistym
+                markMessageAsRead(data.conversation_id, data.message.sender_id);
             } else {
                 // Powiadomienie o nowej wiadomości w innej konwersacji
                 notifyNewMessage(data.conversation_id);
+            }
+        });
+
+        socket.on('message_read', function (data) {
+            console.log('Wiadomość przeczytana:', data);
+            
+            if (data.conversation_id === activeConversation) {
+                // Aktualizuj status przeczytania dla wszystkich wiadomości w konwersacji
+                updateReadStatus(data.conversation_id, data.read_at);
             }
         });
 
@@ -116,6 +128,15 @@
     function initChat() {
         connectWebSocket();
         handleFileSelect();
+
+        // Sprawdź, czy w URL jest ID konwersacji
+        const urlParams = new URLSearchParams(window.location.search);
+        const conversationIdFromUrl = urlParams.get('conversation');
+        
+        if (conversationIdFromUrl) {
+            // Otwórz konwersację z URL
+            openConversation(parseInt(conversationIdFromUrl));
+        }
 
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function () {
@@ -212,6 +233,9 @@
     // Otwieranie konwersacji
     function openConversation(conversationId) {
         activeConversation = parseInt(conversationId);
+
+        // Aktualizuj URL z ID konwersacji
+        updateUrlWithConversationId(conversationId);
 
         // Aktualizuj UI
         $('.conversation-item').removeClass('active');
@@ -461,6 +485,7 @@
         const sentAt = message.sent_at || new Date().toISOString();
         const isMine = !!message.is_mine; // konwersja na boolean
         const attachment = message.attachment || null;
+        const readAt = message.read_at || null;
 
         // Debugowanie
         console.log('Dane wiadomości:', {
@@ -500,6 +525,12 @@
             `;
         }
 
+        // Przygotuj HTML dla statusu przeczytania, jeśli wiadomość jest moja i została przeczytana
+        let readStatusHtml = '';
+        if (isMine && readAt) {
+            readStatusHtml = '<div class="message-read-status">Przeczytano</div>';
+        }
+
         const messageHtml = `
         <div class="message-item ${messageClass}" data-sender-id="${senderId}">
             ${!isMine ? `
@@ -510,6 +541,7 @@
                 <div class="message-text">${messageContent}</div>
                 ${attachmentHtml}
                 <div class="message-time">${formatTime(sentAt)}</div>
+                ${readStatusHtml}
             </div>
         </div>
     `;
@@ -565,6 +597,50 @@
             console.error('Błąd formatowania czasu:', e);
             return 'teraz';
         }
+    }
+
+    // Oznaczanie wiadomości jako przeczytanej
+    function markMessageAsRead(conversationId, senderId) {
+        // Wyślij powiadomienie o przeczytaniu przez AJAX
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'mark_message_read',
+                conversation_id: conversationId,
+                sender_id: senderId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                console.log('Wiadomość oznaczona jako przeczytana:', response);
+            }
+        });
+    }
+
+    // Aktualizacja statusu przeczytania wiadomości
+    function updateReadStatus(conversationId, readAt) {
+        // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
+        $('.message-item.my-message').each(function() {
+            // Dodaj wskaźnik przeczytania, jeśli jeszcze nie istnieje
+            if (!$(this).find('.message-read-status').length) {
+                $(this).find('.message-time').after('<div class="message-read-status">Przeczytano</div>');
+            }
+        });
+    }
+
+    // Aktualizacja URL z ID konwersacji
+    function updateUrlWithConversationId(conversationId) {
+        if (!conversationId) return;
+        
+        // Utwórz nowy obiekt URLSearchParams z bieżącego URL
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Ustaw parametr conversation
+        urlParams.set('conversation', conversationId);
+        
+        // Zaktualizuj URL bez przeładowania strony
+        const newUrl = window.location.pathname + '?' + urlParams.toString();
+        window.history.pushState({path: newUrl}, '', newUrl);
     }
 
     // Przewijanie do najnowszej wiadomości
