@@ -405,6 +405,54 @@ function notifyNewMessage(conversationId) {
                 closeUserInfoPopup();
             }
         });
+        
+        // Obsługa przycisku blokowania użytkownika
+        $(document).on('click', '.block-user-btn', function() {
+            const userId = $(this).data('user-id');
+            if (!userId) {
+                return;
+            }
+            
+            if (confirm('Czy na pewno chcesz zablokować tego użytkownika? Nie będzie mógł wysyłać do Ciebie wiadomości.')) {
+                blockUser(userId);
+            }
+        });
+        
+        // Obsługa przycisku odblokowania użytkownika
+        $(document).on('click', '.unblock-user-btn', function() {
+            const userId = $(this).data('user-id');
+            if (!userId) {
+                return;
+            }
+            
+            if (confirm('Czy na pewno chcesz odblokować tego użytkownika?')) {
+                unblockUser(userId);
+            }
+        });
+        
+        // Obsługa przycisku wyświetlania zablokowanych użytkowników
+        $(document).on('click', '.show-blocked-users-btn', function() {
+            getBlockedUsers();
+        });
+        
+        // Obsługa zamykania popupu z zablokowanymi użytkownikami
+        $(document).on('click', '.blocked-users-close, .blocked-users-popup', function(e) {
+            if (e.target === this) {
+                closeBlockedUsersPopup();
+            }
+        });
+        
+        // Obsługa przycisku odblokowania użytkownika z listy zablokowanych
+        $(document).on('click', '.blocked-user-item .unblock-user', function() {
+            const userId = $(this).data('user-id');
+            if (!userId) {
+                return;
+            }
+            
+            if (confirm('Czy na pewno chcesz odblokować tego użytkownika?')) {
+                unblockUser(userId, true);
+            }
+        });
 
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function () {
@@ -1363,6 +1411,159 @@ function notifyNewMessage(conversationId) {
     // Zamykanie popupu z informacjami o użytkowniku
     function closeUserInfoPopup() {
         $('#user-info-popup').removeClass('active');
+    }
+    
+    // Blokowanie użytkownika
+    function blockUser(userId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'block_user',
+                user_id: userId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Aktualizuj UI
+                    $('.block-user-btn').hide();
+                    $('.unblock-user-btn').show();
+                    $('.unblock-user-btn').data('user-id', userId);
+                    
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Użytkownik został zablokowany');
+                    
+                    // Zamknij popup z informacjami o użytkowniku
+                    closeUserInfoPopup();
+                    
+                    // Odśwież listę konwersacji
+                    refreshConversationsList();
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się zablokować użytkownika', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas blokowania użytkownika', 'error');
+            }
+        });
+    }
+    
+    // Odblokowanie użytkownika
+    function unblockUser(userId, refreshList = false) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'unblock_user',
+                user_id: userId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    if (refreshList) {
+                        // Odśwież listę zablokowanych użytkowników
+                        getBlockedUsers();
+                    } else {
+                        // Aktualizuj UI
+                        $('.unblock-user-btn').hide();
+                        $('.block-user-btn').show();
+                        $('.block-user-btn').data('user-id', userId);
+                    }
+                    
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Użytkownik został odblokowany');
+                    
+                    // Odśwież listę konwersacji
+                    refreshConversationsList();
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się odblokować użytkownika', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas odblokowania użytkownika', 'error');
+            }
+        });
+    }
+    
+    // Pobieranie listy zablokowanych użytkowników
+    function getBlockedUsers() {
+        // Pokaż popup z ładowaniem
+        $('#blocked-users-popup').addClass('active');
+        $('.blocked-users-loading').show();
+        $('.blocked-users-list').empty();
+        
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'get_blocked_users',
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                $('.blocked-users-loading').hide();
+                
+                if (response.success) {
+                    // Wyświetl listę zablokowanych użytkowników
+                    $('.blocked-users-list').html(response.data);
+                } else {
+                    // Pokaż błąd
+                    $('.blocked-users-list').html('<div class="error-message">Błąd podczas pobierania zablokowanych użytkowników</div>');
+                }
+            },
+            error: function() {
+                $('.blocked-users-loading').hide();
+                $('.blocked-users-list').html('<div class="error-message">Błąd podczas pobierania zablokowanych użytkowników</div>');
+            }
+        });
+    }
+    
+    // Zamykanie popupu z zablokowanymi użytkownikami
+    function closeBlockedUsersPopup() {
+        $('#blocked-users-popup').removeClass('active');
+    }
+    
+    // Wypełnianie popupu danymi użytkownika
+    function fillUserInfoPopup(userData) {
+        // Ustaw avatar
+        $('.user-info-avatar img').attr('src', userData.avatar);
+        
+        // Ustaw imię i nazwisko
+        $('.user-info-name').text(userData.display_name);
+        
+        // Ustaw rolę
+        $('.user-info-role').text(userData.role);
+        
+        // Ustaw email
+        $('.user-info-email').text(userData.user_email);
+        
+        // Ustaw datę rejestracji
+        $('.user-info-registered').text(userData.user_registered);
+        
+        // Ustaw opis (jeśli istnieje)
+        if (userData.description) {
+            $('.user-info-description').text(userData.description);
+            $('.user-info-section:nth-last-child(2)').show();
+        } else {
+            $('.user-info-description').text('Brak opisu');
+            $('.user-info-section:nth-last-child(2)').show();
+        }
+        
+        // Ustaw przyciski blokowania/odblokowania
+        const blockUserBtn = $('.block-user-btn');
+        const unblockUserBtn = $('.unblock-user-btn');
+        
+        blockUserBtn.data('user-id', userData.id);
+        unblockUserBtn.data('user-id', userData.id);
+        
+        if (userData.is_blocked) {
+            blockUserBtn.hide();
+            unblockUserBtn.show();
+        } else {
+            blockUserBtn.show();
+            unblockUserBtn.hide();
+        }
     }
     
     // Wyświetlanie powiadomień

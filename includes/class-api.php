@@ -62,6 +62,18 @@ class WP_Messenger_Chat_API {
         
         // Ajax dla pobrania statusu przeczytania wiadomości
         add_action('wp_ajax_get_message_read_status', array($this, 'get_message_read_status'));
+        
+        // Ajax dla blokowania użytkownika
+        add_action('wp_ajax_block_user', array($this, 'block_user'));
+        
+        // Ajax dla odblokowania użytkownika
+        add_action('wp_ajax_unblock_user', array($this, 'unblock_user'));
+        
+        // Ajax dla pobrania listy zablokowanych użytkowników
+        add_action('wp_ajax_get_blocked_users', array($this, 'get_blocked_users'));
+        
+        // Ajax dla sprawdzenia, czy użytkownik jest zablokowany
+        add_action('wp_ajax_is_user_blocked', array($this, 'is_user_blocked'));
     }
 
     /**
@@ -190,6 +202,18 @@ class WP_Messenger_Chat_API {
 
         // Jeśli nie ma ID konwersacji, ale jest odbiorca, utwórz nową konwersację
         if ($conversation_id == 0 && $recipient_id > 0) {
+            // Sprawdź, czy użytkownik jest zablokowany
+            if ($database->is_user_blocked($user_id, $recipient_id)) {
+                wp_send_json_error(array('message' => 'Nie możesz wysłać wiadomości do tego użytkownika, ponieważ go zablokowałeś'));
+                return;
+            }
+            
+            // Sprawdź, czy użytkownik zablokował nadawcę
+            if ($database->is_user_blocked($recipient_id, $user_id)) {
+                wp_send_json_error(array('message' => 'Nie możesz wysłać wiadomości do tego użytkownika, ponieważ on Cię zablokował'));
+                return;
+            }
+            
             $conversation_id = $database->create_conversation($user_id, $recipient_id);
             $is_new_conversation = true;
         }
@@ -197,6 +221,23 @@ class WP_Messenger_Chat_API {
         // Sprawdź czy użytkownik ma dostęp do konwersacji
         if (!$database->user_in_conversation($user_id, $conversation_id)) {
             wp_send_json_error(array('message' => 'Brak dostępu do tej konwersacji'));
+            return;
+        }
+        
+        // Pobierz ID odbiorcy, jeśli nie został podany
+        if (!$recipient_id) {
+            $recipient_id = $database->get_recipient_id($conversation_id, $user_id);
+        }
+        
+        // Sprawdź, czy użytkownik jest zablokowany
+        if ($database->is_user_blocked($user_id, $recipient_id)) {
+            wp_send_json_error(array('message' => 'Nie możesz wysłać wiadomości do tego użytkownika, ponieważ go zablokowałeś'));
+            return;
+        }
+        
+        // Sprawdź, czy użytkownik zablokował nadawcę
+        if ($database->is_user_blocked($recipient_id, $user_id)) {
+            wp_send_json_error(array('message' => 'Nie możesz wysłać wiadomości do tego użytkownika, ponieważ on Cię zablokował'));
             return;
         }
 
@@ -608,6 +649,14 @@ class WP_Messenger_Chat_API {
             return;
         }
         
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Sprawdź, czy użytkownik jest zablokowany
+        $current_user_id = get_current_user_id();
+        $is_blocked = $database->is_user_blocked($current_user_id, $user_id);
+        
         // Przygotuj dane użytkownika do wyświetlenia
         $user_info = array(
             'id' => $user->ID,
@@ -617,12 +666,153 @@ class WP_Messenger_Chat_API {
             'avatar' => get_avatar_url($user->ID, array('size' => 150)),
             'role' => implode(', ', array_map(function($role) {
                 return translate_user_role($role);
-            }, $user->roles))
+            }, $user->roles)),
+            'is_blocked' => $is_blocked
         );
         
         // Dodaj dodatkowe pola profilu, jeśli istnieją
         $user_info['description'] = get_user_meta($user->ID, 'description', true);
         
         wp_send_json_success($user_info);
+    }
+    
+    /**
+     * Obsługuje blokowanie użytkownika
+     */
+    public function block_user() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $blocked_user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if ($blocked_user_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID użytkownika'));
+            return;
+        }
+        
+        if ($blocked_user_id === $user_id) {
+            wp_send_json_error(array('message' => 'Nie możesz zablokować samego siebie'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Zablokuj użytkownika
+        $result = $database->block_user($user_id, $blocked_user_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => 'Użytkownik został zablokowany'));
+        } else {
+            wp_send_json_error(array('message' => 'Nie udało się zablokować użytkownika'));
+        }
+    }
+    
+    /**
+     * Obsługuje odblokowanie użytkownika
+     */
+    public function unblock_user() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $blocked_user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if ($blocked_user_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID użytkownika'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Odblokuj użytkownika
+        $result = $database->unblock_user($user_id, $blocked_user_id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => 'Użytkownik został odblokowany'));
+        } else {
+            wp_send_json_error(array('message' => 'Nie udało się odblokować użytkownika'));
+        }
+    }
+    
+    /**
+     * Obsługuje pobieranie listy zablokowanych użytkowników
+     */
+    public function get_blocked_users() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $user_id = get_current_user_id();
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Pobierz zablokowanych użytkowników
+        $blocked_users = $database->get_blocked_users($user_id);
+        
+        // Przygotuj HTML z listą zablokowanych użytkowników
+        ob_start();
+        
+        if (empty($blocked_users)) {
+            echo '<div class="no-blocked-users">Brak zablokowanych użytkowników</div>';
+        } else {
+            echo '<div class="blocked-users-list">';
+            foreach ($blocked_users as $blocked_user) {
+                ?>
+                <div class="blocked-user-item" data-user-id="<?php echo esc_attr($blocked_user->blocked_user_id); ?>">
+                    <div class="blocked-user-avatar">
+                        <img src="<?php echo esc_url($blocked_user->avatar); ?>" alt="<?php echo esc_attr($blocked_user->display_name); ?>">
+                    </div>
+                    <div class="blocked-user-info">
+                        <div class="blocked-user-name"><?php echo esc_html($blocked_user->display_name); ?></div>
+                        <div class="blocked-at">Zablokowano: <?php echo date_i18n(get_option('date_format'), strtotime($blocked_user->blocked_at)); ?></div>
+                    </div>
+                    <div class="blocked-user-actions">
+                        <button class="unblock-user" data-user-id="<?php echo esc_attr($blocked_user->blocked_user_id); ?>">
+                            <span class="dashicons dashicons-unlock"></span> Odblokuj
+                        </button>
+                    </div>
+                </div>
+                <?php
+            }
+            echo '</div>';
+        }
+        
+        $html = ob_get_clean();
+        wp_send_json_success($html);
+    }
+    
+    /**
+     * Obsługuje sprawdzenie, czy użytkownik jest zablokowany
+     */
+    public function is_user_blocked() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+        $current_user_id = get_current_user_id();
+        
+        if ($user_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID użytkownika'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Sprawdź, czy użytkownik jest zablokowany
+        $is_blocked = $database->is_user_blocked($current_user_id, $user_id);
+        $is_blocking_me = $database->is_user_blocked($user_id, $current_user_id);
+        
+        wp_send_json_success(array(
+            'is_blocked' => $is_blocked,
+            'is_blocking_me' => $is_blocking_me
+        ));
     }
 }

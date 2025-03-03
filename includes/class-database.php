@@ -55,11 +55,23 @@ class WP_Messenger_Chat_Database {
             PRIMARY KEY  (id),
             UNIQUE KEY conversation_user (conversation_id, user_id)
         ) $charset_collate;";
+        
+        // Tabela zablokowanych użytkowników
+        $table_blocked_users = $wpdb->prefix . 'messenger_blocked_users';
+        $sql_blocked_users = "CREATE TABLE $table_blocked_users (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL,
+            blocked_user_id bigint(20) NOT NULL,
+            blocked_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY user_blocked_user (user_id, blocked_user_id)
+        ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_messages);
         dbDelta($sql_conversations);
         dbDelta($sql_participants);
+        dbDelta($sql_blocked_users);
     }
 
     /**
@@ -520,5 +532,112 @@ class WP_Messenger_Chat_Database {
         }
 
         return $unread_counts;
+    }
+
+    /**
+     * Blokuje użytkownika
+     *
+     * @param int $user_id ID użytkownika blokującego
+     * @param int $blocked_user_id ID blokowanego użytkownika
+     * @return bool Czy operacja się powiodła
+     */
+    public function block_user($user_id, $blocked_user_id) {
+        global $wpdb;
+        $table_blocked_users = $wpdb->prefix . 'messenger_blocked_users';
+
+        // Sprawdź, czy użytkownik jest już zablokowany
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_blocked_users} 
+             WHERE user_id = %d AND blocked_user_id = %d",
+            $user_id, $blocked_user_id
+        ));
+
+        if ($existing > 0) {
+            // Użytkownik jest już zablokowany
+            return true;
+        }
+
+        // Zablokuj użytkownika
+        $result = $wpdb->insert(
+            $table_blocked_users,
+            array(
+                'user_id' => $user_id,
+                'blocked_user_id' => $blocked_user_id,
+                'blocked_at' => current_time('mysql')
+            )
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Odblokowuje użytkownika
+     *
+     * @param int $user_id ID użytkownika odblokowującego
+     * @param int $blocked_user_id ID odblokowanego użytkownika
+     * @return bool Czy operacja się powiodła
+     */
+    public function unblock_user($user_id, $blocked_user_id) {
+        global $wpdb;
+        $table_blocked_users = $wpdb->prefix . 'messenger_blocked_users';
+
+        // Usuń wpis z tabeli zablokowanych użytkowników
+        $result = $wpdb->delete(
+            $table_blocked_users,
+            array(
+                'user_id' => $user_id,
+                'blocked_user_id' => $blocked_user_id
+            )
+        );
+
+        return $result !== false;
+    }
+
+    /**
+     * Sprawdza, czy użytkownik jest zablokowany
+     *
+     * @param int $user_id ID użytkownika
+     * @param int $blocked_user_id ID potencjalnie zablokowanego użytkownika
+     * @return bool Czy użytkownik jest zablokowany
+     */
+    public function is_user_blocked($user_id, $blocked_user_id) {
+        global $wpdb;
+        $table_blocked_users = $wpdb->prefix . 'messenger_blocked_users';
+
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_blocked_users} 
+             WHERE user_id = %d AND blocked_user_id = %d",
+            $user_id, $blocked_user_id
+        ));
+
+        return intval($count) > 0;
+    }
+
+    /**
+     * Pobiera listę zablokowanych użytkowników
+     *
+     * @param int $user_id ID użytkownika
+     * @return array Lista zablokowanych użytkowników
+     */
+    public function get_blocked_users($user_id) {
+        global $wpdb;
+        $table_blocked_users = $wpdb->prefix . 'messenger_blocked_users';
+
+        $blocked_users = $wpdb->get_results($wpdb->prepare(
+            "SELECT blocked_user_id, blocked_at 
+             FROM {$table_blocked_users} 
+             WHERE user_id = %d
+             ORDER BY blocked_at DESC",
+            $user_id
+        ));
+
+        // Dodaj dane użytkowników
+        foreach ($blocked_users as $blocked_user) {
+            $user = get_userdata($blocked_user->blocked_user_id);
+            $blocked_user->display_name = $user ? $user->display_name : 'Nieznany użytkownik';
+            $blocked_user->avatar = get_avatar_url($blocked_user->blocked_user_id);
+        }
+
+        return $blocked_users;
     }
 }

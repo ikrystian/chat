@@ -182,6 +182,28 @@
                 <div class="user-info-label">O użytkowniku</div>
                 <div class="user-info-description"></div>
             </div>
+            <div class="user-info-actions">
+                <button class="block-user-btn" data-user-id="">
+                    <span class="dashicons dashicons-lock"></span> Zablokuj użytkownika
+                </button>
+                <button class="unblock-user-btn" data-user-id="" style="display: none;">
+                    <span class="dashicons dashicons-unlock"></span> Odblokuj użytkownika
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Popup z listą zablokowanych użytkowników -->
+<div id="blocked-users-popup" class="blocked-users-popup">
+    <div class="blocked-users-content">
+        <div class="blocked-users-header">
+            <h2>Zablokowani użytkownicy</h2>
+            <button class="blocked-users-close"><span class="dashicons dashicons-no-alt"></span></button>
+        </div>
+        <div class="blocked-users-body">
+            <div class="blocked-users-loading">Ładowanie zablokowanych użytkowników...</div>
+            <div class="blocked-users-list"></div>
         </div>
     </div>
 </div>
