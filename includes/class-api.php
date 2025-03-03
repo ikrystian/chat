@@ -35,6 +35,10 @@ class WP_Messenger_Chat_API {
         add_action('wp_ajax_get_user_info', array($this, 'get_user_info'));
         add_action('wp_ajax_nopriv_get_user_info', array($this, 'get_user_info'));
         
+        // Ajax dla pobrania załączników konwersacji
+        add_action('wp_ajax_get_conversation_attachments', array($this, 'get_conversation_attachments'));
+        add_action('wp_ajax_nopriv_get_conversation_attachments', array($this, 'get_conversation_attachments'));
+        
         // Ajax dla archiwizacji konwersacji
         add_action('wp_ajax_archive_conversation', array($this, 'archive_conversation'));
         
@@ -132,6 +136,14 @@ class WP_Messenger_Chat_API {
                     <div class="conversation-info">
                         <div class="user-name"><?php echo esc_html($conv->other_user_name); ?></div>
                         <div class="last-message"><?php echo esc_html($conv->last_message); ?></div>
+                    </div>
+                    <div class="conversation-actions">
+                        <button class="view-attachments" data-conversation-id="<?php echo esc_attr($conv->id); ?>" title="Załączniki">
+                            <span class="dashicons dashicons-paperclip"></span>
+                        </button>
+                        <button class="archive-conversation" data-conversation-id="<?php echo esc_attr($conv->id); ?>" title="Archiwizuj">
+                            <span class="dashicons dashicons-archive"></span>
+                        </button>
                     </div>
                     <?php echo $unread_badge; ?>
                 </div>
@@ -341,6 +353,9 @@ class WP_Messenger_Chat_API {
                         <div class="last-message"><?php echo esc_html($conv->last_message); ?></div>
                     </div>
                     <div class="conversation-actions">
+                        <button class="view-attachments" data-conversation-id="<?php echo esc_attr($conv->id); ?>" title="Załączniki">
+                            <span class="dashicons dashicons-paperclip"></span>
+                        </button>
                         <button class="unarchive-conversation" data-conversation-id="<?php echo esc_attr($conv->id); ?>">
                             <span class="dashicons dashicons-undo"></span>
                         </button>
@@ -443,6 +458,9 @@ class WP_Messenger_Chat_API {
                         <div class="last-message"><?php echo esc_html($conv->last_message); ?></div>
                     </div>
                     <div class="conversation-actions">
+                        <button class="view-attachments" data-conversation-id="<?php echo esc_attr($conv->id); ?>" title="Załączniki">
+                            <span class="dashicons dashicons-paperclip"></span>
+                        </button>
                         <button class="restore-conversation" data-conversation-id="<?php echo esc_attr($conv->id); ?>">
                             <span class="dashicons dashicons-undo"></span>
                         </button>
@@ -521,6 +539,51 @@ class WP_Messenger_Chat_API {
             'is_read' => $read_at !== false,
             'read_at' => $read_at
         ));
+    }
+    
+    /**
+     * Obsługuje pobieranie załączników konwersacji
+     */
+    public function get_conversation_attachments() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if ($conversation_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID konwersacji'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Pobierz załączniki
+        $attachments = $database->get_conversation_attachments($conversation_id, $user_id);
+        
+        if ($attachments === false) {
+            wp_send_json_error(array('message' => 'Brak dostępu do tej konwersacji'));
+            return;
+        }
+        
+        // Przygotuj dane załączników
+        $upload_dir = wp_upload_dir();
+        $attachments_url = $upload_dir['baseurl'] . '/messenger-attachments/';
+        
+        foreach ($attachments as &$attachment) {
+            // Dodaj pełny URL do załącznika
+            $attachment->url = $attachments_url . $attachment->attachment;
+            
+            // Dodaj nazwę pliku (bez ścieżki)
+            $attachment->filename = basename($attachment->attachment);
+            
+            // Sformatuj datę
+            $attachment->formatted_date = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($attachment->sent_at));
+        }
+        
+        wp_send_json_success($attachments);
     }
     
     /**

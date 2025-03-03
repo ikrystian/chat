@@ -363,6 +363,25 @@ function notifyNewMessage(conversationId) {
             }
         });
         
+        // Obsługa przycisku załączników
+        $(document).on('click', '.view-attachments', function(e) {
+            e.stopPropagation(); // Zapobiega otwieraniu konwersacji
+            const conversationId = $(this).data('conversation-id');
+            if (!conversationId) {
+                return;
+            }
+            
+            // Pobierz załączniki dla konwersacji
+            getConversationAttachments(conversationId);
+        });
+        
+        // Obsługa zamykania popupu z załącznikami
+        $(document).on('click', '.attachments-close, .attachments-popup', function(e) {
+            if (e.target === this) {
+                closeAttachmentsPopup();
+            }
+        });
+        
         // Obsługa przycisku informacji o użytkowniku
         $(document).on('click', '.info-btn', function() {
             const conversationId = $('#messenger-conversation-id').val();
@@ -1226,6 +1245,60 @@ function notifyNewMessage(conversationId) {
                 $('.messenger-deleted-list').html('<div class="error-message">Błąd podczas ładowania usuniętych konwersacji</div>');
             }
         });
+    }
+    
+    // Pobieranie załączników konwersacji
+    function getConversationAttachments(conversationId) {
+        // Pokaż popup z ładowaniem
+        $('#attachments-popup').addClass('active');
+        $('.attachments-loading').show();
+        $('.attachments-list').empty();
+        $('.attachments-empty').hide();
+        
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'get_conversation_attachments',
+                conversation_id: conversationId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                $('.attachments-loading').hide();
+                
+                if (response.success && response.data && response.data.length > 0) {
+                    // Wyświetl listę załączników
+                    const attachmentsList = $('.attachments-list');
+                    
+                    response.data.forEach(function(attachment) {
+                        const attachmentItem = `
+                            <div class="attachment-item">
+                                <span class="attachment-icon dashicons dashicons-pdf"></span>
+                                <div class="attachment-info">
+                                    <div class="attachment-name">${attachment.filename}</div>
+                                    <div class="attachment-date">${attachment.formatted_date}</div>
+                                </div>
+                                <a href="${attachment.url}" target="_blank" class="attachment-download">Pobierz</a>
+                            </div>
+                        `;
+                        
+                        attachmentsList.append(attachmentItem);
+                    });
+                } else {
+                    // Pokaż komunikat o braku załączników
+                    $('.attachments-empty').show();
+                }
+            },
+            error: function() {
+                $('.attachments-loading').hide();
+                $('.attachments-list').html('<div class="error-message">Błąd podczas pobierania załączników</div>');
+            }
+        });
+    }
+    
+    // Zamykanie popupu z załącznikami
+    function closeAttachmentsPopup() {
+        $('#attachments-popup').removeClass('active');
     }
     
     // Pobieranie informacji o użytkowniku

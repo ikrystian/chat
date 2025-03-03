@@ -689,6 +689,149 @@
     }
 }
 
+/* Popup z załącznikami */
+.attachments-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.attachments-popup.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.attachments-content {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 0;
+    position: relative;
+}
+
+.attachments-header {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+}
+
+.attachments-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #65676b;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attachments-close:hover {
+    background-color: #f2f2f2;
+}
+
+.attachments-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    color: #050505;
+}
+
+.attachments-body {
+    padding: 20px;
+}
+
+.attachments-loading {
+    text-align: center;
+    padding: 20px;
+    color: #65676b;
+}
+
+.attachments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-radius: 8px;
+    background-color: #f0f2f5;
+    transition: background-color 0.2s;
+}
+
+.attachment-item:hover {
+    background-color: #e4e6eb;
+}
+
+.attachment-item .attachment-icon {
+    margin-right: 12px;
+    color: #e94c3d;
+    font-size: 24px;
+}
+
+.attachment-item .attachment-info {
+    flex: 1;
+}
+
+.attachment-item .attachment-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #050505;
+    margin-bottom: 4px;
+}
+
+.attachment-item .attachment-date {
+    font-size: 12px;
+    color: #65676b;
+}
+
+.attachment-item .attachment-download {
+    background-color: #0084ff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.attachment-item .attachment-download:hover {
+    background-color: #0069d9;
+}
+
+.attachments-empty {
+    text-align: center;
+    padding: 30px;
+    color: #65676b;
+    font-size: 15px;
+}
+
 /* Popup z informacjami o użytkowniku */
 .user-info-popup {
     position: fixed;

@@ -456,6 +456,40 @@ class WP_Messenger_Chat_Database {
     }
 
     /**
+     * Pobiera wszystkie załączniki dla konwersacji
+     *
+     * @param int $conversation_id ID konwersacji
+     * @param int $user_id ID użytkownika (dla weryfikacji dostępu)
+     * @return array|false Lista załączników lub false jeśli użytkownik nie ma dostępu
+     */
+    public function get_conversation_attachments($conversation_id, $user_id) {
+        // Sprawdź czy użytkownik ma dostęp do konwersacji
+        if (!$this->user_in_conversation($user_id, $conversation_id)) {
+            return false;
+        }
+
+        global $wpdb;
+        $table_messages = $wpdb->prefix . 'messenger_messages';
+
+        $attachments = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, sender_id, attachment, sent_at 
+             FROM {$table_messages} 
+             WHERE conversation_id = %d AND attachment IS NOT NULL AND attachment != ''
+             ORDER BY sent_at DESC",
+            $conversation_id
+        ));
+
+        // Dodaj dane nadawców
+        foreach ($attachments as $attachment) {
+            $sender = get_userdata($attachment->sender_id);
+            $attachment->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            $attachment->is_mine = ($attachment->sender_id == $user_id);
+        }
+
+        return $attachments;
+    }
+
+    /**
      * Pobiera nieprzeczytane wiadomości dla użytkownika
      *
      * @param int $user_id ID użytkownika

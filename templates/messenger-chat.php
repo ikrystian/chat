@@ -49,6 +49,9 @@
                             </div>
                         </div>
                         <div class="conversation-actions">
+                            <button class="view-attachments" data-conversation-id="<?php echo esc_attr($conversation->id); ?>" title="Załączniki">
+                                <span class="dashicons dashicons-paperclip"></span>
+                            </button>
                             <button class="archive-conversation" data-conversation-id="<?php echo esc_attr($conversation->id); ?>" title="Archiwizuj">
                                 <span class="dashicons dashicons-archive"></span>
                             </button>
@@ -136,6 +139,21 @@
                 </div>
                 <div id="emoji-picker-container"></div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Popup z załącznikami -->
+<div id="attachments-popup" class="attachments-popup">
+    <div class="attachments-content">
+        <div class="attachments-header">
+            <h2>Załączniki</h2>
+            <button class="attachments-close"><span class="dashicons dashicons-no-alt"></span></button>
+        </div>
+        <div class="attachments-body">
+            <div class="attachments-loading">Ładowanie załączników...</div>
+            <div class="attachments-list"></div>
+            <div class="attachments-empty" style="display: none;">Brak załączników w tej konwersacji</div>
         </div>
     </div>
 </div>
