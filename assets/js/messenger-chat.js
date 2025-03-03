@@ -362,6 +362,30 @@ function notifyNewMessage(conversationId) {
                 deleteConversation(conversationId);
             }
         });
+        
+        // Obsługa przycisku informacji o użytkowniku
+        $(document).on('click', '.info-btn', function() {
+            const conversationId = $('#messenger-conversation-id').val();
+            if (!conversationId || conversationId === '0') {
+                return; // Nie ma aktywnej konwersacji
+            }
+            
+            // Pobierz ID odbiorcy z aktywnej konwersacji
+            const recipientId = getRecipientIdFromConversation(conversationId);
+            if (!recipientId) {
+                return;
+            }
+            
+            // Pobierz informacje o użytkowniku
+            getUserInfo(recipientId);
+        });
+        
+        // Obsługa zamykania popupu z informacjami o użytkowniku
+        $(document).on('click', '.user-info-close, .user-info-popup', function(e) {
+            if (e.target === this) {
+                closeUserInfoPopup();
+            }
+        });
 
         // Obsługa kliknięcia na konwersację
         $(document).on('click', '.conversation-item', function () {
@@ -1202,6 +1226,70 @@ function notifyNewMessage(conversationId) {
                 $('.messenger-deleted-list').html('<div class="error-message">Błąd podczas ładowania usuniętych konwersacji</div>');
             }
         });
+    }
+    
+    // Pobieranie informacji o użytkowniku
+    function getUserInfo(userId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'get_user_info',
+                user_id: userId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Wypełnij popup danymi użytkownika
+                    fillUserInfoPopup(response.data);
+                    
+                    // Pokaż popup
+                    showUserInfoPopup();
+                } else {
+                    showNotification('Nie udało się pobrać informacji o użytkowniku', 'error');
+                }
+            },
+            error: function() {
+                showNotification('Wystąpił błąd podczas pobierania informacji o użytkowniku', 'error');
+            }
+        });
+    }
+    
+    // Wypełnianie popupu danymi użytkownika
+    function fillUserInfoPopup(userData) {
+        // Ustaw avatar
+        $('.user-info-avatar img').attr('src', userData.avatar);
+        
+        // Ustaw imię i nazwisko
+        $('.user-info-name').text(userData.display_name);
+        
+        // Ustaw rolę
+        $('.user-info-role').text(userData.role);
+        
+        // Ustaw email
+        $('.user-info-email').text(userData.user_email);
+        
+        // Ustaw datę rejestracji
+        $('.user-info-registered').text(userData.user_registered);
+        
+        // Ustaw opis (jeśli istnieje)
+        if (userData.description) {
+            $('.user-info-description').text(userData.description);
+            $('.user-info-section:last-child').show();
+        } else {
+            $('.user-info-description').text('Brak opisu');
+            $('.user-info-section:last-child').show();
+        }
+    }
+    
+    // Pokazywanie popupu z informacjami o użytkowniku
+    function showUserInfoPopup() {
+        $('#user-info-popup').addClass('active');
+    }
+    
+    // Zamykanie popupu z informacjami o użytkowniku
+    function closeUserInfoPopup() {
+        $('#user-info-popup').removeClass('active');
     }
     
     // Wyświetlanie powiadomień

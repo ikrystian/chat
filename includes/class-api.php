@@ -31,6 +31,10 @@ class WP_Messenger_Chat_API {
         add_action('wp_ajax_get_conversations', array($this, 'get_conversations'));
         add_action('wp_ajax_nopriv_get_conversations', array($this, 'get_conversations'));
         
+        // Ajax dla pobrania informacji o użytkowniku
+        add_action('wp_ajax_get_user_info', array($this, 'get_user_info'));
+        add_action('wp_ajax_nopriv_get_user_info', array($this, 'get_user_info'));
+        
         // Ajax dla archiwizacji konwersacji
         add_action('wp_ajax_archive_conversation', array($this, 'archive_conversation'));
         
@@ -517,5 +521,45 @@ class WP_Messenger_Chat_API {
             'is_read' => $read_at !== false,
             'read_at' => $read_at
         ));
+    }
+    
+    /**
+     * Obsługuje pobieranie informacji o użytkowniku
+     */
+    public function get_user_info() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+        
+        if ($user_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID użytkownika'));
+            return;
+        }
+        
+        // Pobierz dane użytkownika
+        $user = get_userdata($user_id);
+        
+        if (!$user) {
+            wp_send_json_error(array('message' => 'Użytkownik nie istnieje'));
+            return;
+        }
+        
+        // Przygotuj dane użytkownika do wyświetlenia
+        $user_info = array(
+            'id' => $user->ID,
+            'display_name' => $user->display_name,
+            'user_email' => $user->user_email,
+            'user_registered' => date_i18n(get_option('date_format'), strtotime($user->user_registered)),
+            'avatar' => get_avatar_url($user->ID, array('size' => 150)),
+            'role' => implode(', ', array_map(function($role) {
+                return translate_user_role($role);
+            }, $user->roles))
+        );
+        
+        // Dodaj dodatkowe pola profilu, jeśli istnieją
+        $user_info['description'] = get_user_meta($user->ID, 'description', true);
+        
+        wp_send_json_success($user_info);
     }
 }

@@ -689,6 +689,129 @@
     }
 }
 
+/* Popup z informacjami o użytkowniku */
+.user-info-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.user-info-popup.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.user-info-content {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 0;
+    position: relative;
+}
+
+.user-info-header {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+}
+
+.user-info-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #65676b;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-info-close:hover {
+    background-color: #f2f2f2;
+}
+
+.user-info-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin: 0 auto 15px;
+    border: 5px solid #f0f2f5;
+    overflow: hidden;
+}
+
+.user-info-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-info-name {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 5px;
+    color: #050505;
+}
+
+.user-info-role {
+    font-size: 14px;
+    color: #65676b;
+    margin: 0;
+}
+
+.user-info-body {
+    padding: 20px;
+}
+
+.user-info-section {
+    margin-bottom: 20px;
+}
+
+.user-info-section:last-child {
+    margin-bottom: 0;
+}
+
+.user-info-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #65676b;
+    margin-bottom: 5px;
+}
+
+.user-info-value {
+    font-size: 16px;
+    color: #050505;
+    margin: 0;
+    word-break: break-word;
+}
+
+.user-info-description {
+    font-size: 14px;
+    color: #050505;
+    line-height: 1.5;
+    margin: 0;
+}
+
 /* Powiadomienia */
 .messenger-notification {
     position: fixed;

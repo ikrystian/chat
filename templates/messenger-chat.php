@@ -139,3 +139,31 @@
         </div>
     </div>
 </div>
+
+<!-- Popup z informacjami o użytkowniku -->
+<div id="user-info-popup" class="user-info-popup">
+    <div class="user-info-content">
+        <div class="user-info-header">
+            <button class="user-info-close"><span class="dashicons dashicons-no-alt"></span></button>
+            <div class="user-info-avatar">
+                <img src="" alt="Avatar użytkownika">
+            </div>
+            <h2 class="user-info-name"></h2>
+            <p class="user-info-role"></p>
+        </div>
+        <div class="user-info-body">
+            <div class="user-info-section">
+                <div class="user-info-label">Email</div>
+                <p class="user-info-value user-info-email"></p>
+            </div>
+            <div class="user-info-section">
+                <div class="user-info-label">Data rejestracji</div>
+                <p class="user-info-value user-info-registered"></p>
+            </div>
+            <div class="user-info-section">
+                <div class="user-info-label">O użytkowniku</div>
+                <div class="user-info-description"></div>
+            </div>
+        </div>
+    </div>
+</div>
