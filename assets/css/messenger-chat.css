@@ -427,6 +427,25 @@
     margin-left: 48px;
 }
 
+/* Style dla statusu przeczytania wiadomości */
+.message-read, .message-not-read {
+    font-size: 11px;
+    margin-top: 2px;
+    align-self: flex-end;
+}
+
+.message-read {
+    color: #65676b;
+}
+
+.message-not-read {
+    color: #8a8d91;
+}
+
+.my-message .message-read, .my-message .message-not-read {
+    margin-right: 12px;
+}
+
 /* Pole wprowadzania */
 .messenger-input {
     padding: 15px;
@@ -601,6 +620,26 @@
 .has-new-message .user-name {
     font-weight: 700;
     color: #0084ff;
+}
+
+/* Wskaźnik nieprzeczytanych wiadomości */
+.unread-badge {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #0084ff;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* Wskaźnik pisania */

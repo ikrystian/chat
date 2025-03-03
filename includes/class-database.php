@@ -31,6 +31,7 @@ class WP_Messenger_Chat_Database {
             message text NOT NULL,
             attachment varchar(255) DEFAULT NULL,
             sent_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            read_at datetime DEFAULT NULL,
             PRIMARY KEY  (id)
         ) $charset_collate;";
 
@@ -398,5 +399,92 @@ class WP_Messenger_Chat_Database {
      */
     public function get_deleted_conversations($user_id) {
         return $this->get_user_conversations($user_id, false, true);
+    }
+
+    /**
+     * Oznacza wiadomości jako przeczytane
+     *
+     * @param int $conversation_id ID konwersacji
+     * @param int $user_id ID użytkownika (odbiorca)
+     * @return bool Czy operacja się powiodła
+     */
+    public function mark_messages_as_read($conversation_id, $user_id) {
+        // Sprawdź czy użytkownik ma dostęp do konwersacji
+        if (!$this->user_in_conversation($user_id, $conversation_id)) {
+            return false;
+        }
+
+        global $wpdb;
+        $table_messages = $wpdb->prefix . 'messenger_messages';
+
+        // Oznacz jako przeczytane tylko wiadomości, które nie zostały wysłane przez bieżącego użytkownika
+        // i które nie zostały jeszcze przeczytane
+        $result = $wpdb->query($wpdb->prepare(
+            "UPDATE {$table_messages} 
+             SET read_at = %s 
+             WHERE conversation_id = %d 
+             AND sender_id != %d 
+             AND (read_at IS NULL OR read_at = '0000-00-00 00:00:00')",
+            current_time('mysql'),
+            $conversation_id,
+            $user_id
+        ));
+
+        return $result !== false;
+    }
+
+    /**
+     * Sprawdza czy wiadomość została przeczytana
+     *
+     * @param int $message_id ID wiadomości
+     * @return bool|string Data przeczytania lub false jeśli nie przeczytano
+     */
+    public function is_message_read($message_id) {
+        global $wpdb;
+        $table_messages = $wpdb->prefix . 'messenger_messages';
+
+        $read_at = $wpdb->get_var($wpdb->prepare(
+            "SELECT read_at FROM {$table_messages} WHERE id = %d",
+            $message_id
+        ));
+
+        if ($read_at && $read_at != '0000-00-00 00:00:00') {
+            return $read_at;
+        }
+
+        return false;
+    }
+
+    /**
+     * Pobiera nieprzeczytane wiadomości dla użytkownika
+     *
+     * @param int $user_id ID użytkownika
+     * @return array Lista nieprzeczytanych wiadomości
+     */
+    public function get_unread_messages_count($user_id) {
+        global $wpdb;
+        $table_messages = $wpdb->prefix . 'messenger_messages';
+        $table_participants = $wpdb->prefix . 'messenger_participants';
+
+        // Pobierz liczbę nieprzeczytanych wiadomości dla każdej konwersacji
+        $query = "
+            SELECT m.conversation_id, COUNT(*) as count
+            FROM {$table_messages} m
+            JOIN {$table_participants} p ON m.conversation_id = p.conversation_id
+            WHERE p.user_id = %d
+            AND m.sender_id != %d
+            AND (m.read_at IS NULL OR m.read_at = '0000-00-00 00:00:00')
+            GROUP BY m.conversation_id
+        ";
+
+        $results = $wpdb->get_results($wpdb->prepare($query, $user_id, $user_id), ARRAY_A);
+        
+        // Przekształć wyniki na tablicę z kluczami conversation_id
+        $unread_counts = array();
+        foreach ($results as $row) {
+            $unread_counts[$row['conversation_id']] = (int)$row['count'];
+        }
+
+        return $unread_counts;
     }
 }

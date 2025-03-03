@@ -27,15 +27,31 @@
                 // Przewiń do najnowszej wiadomości
                 scrollToBottom();
                 
+                // Oznacz wiadomości jako przeczytane
+                markMessagesAsRead(data.conversation_id);
             } else {
                 // Powiadomienie o nowej wiadomości w innej konwersacji
                 notifyNewMessage(data.conversation_id);
             }
         });
+        
+        socket.on('message_read', function (data) {
+            console.log('Otrzymano potwierdzenie przeczytania:', data);
+            
+            // Aktualizuj wskaźniki przeczytania dla wiadomości w konwersacji
+            updateReadReceipts(data.conversation_id, data.read_at);
+        });
 
         socket.on('typing', function (data) {
             if (data.conversation_id === activeConversation) {
                 showTypingIndicator(data.user_id);
+            }
+        });
+        
+        socket.on('message_seen', function (data) {
+            if (data.conversation_id === activeConversation) {
+                // Aktualizuj status "seen" dla wiadomości wysłanych przez bieżącego użytkownika
+                updateMessageSeenStatus(data.seen_at);
             }
         });
 
@@ -111,6 +127,80 @@ function notifyNewMessage(conversationId) {
                 recipient_id: parseInt(recipientId),
                 user_id: currentUserId
             });
+        }
+    }
+    
+    // Wysyłanie powiadomienia o przeczytaniu wiadomości
+    function sendMessageSeenNotification(conversationId, recipientId) {
+        if (!conversationId || !recipientId || !socket.connected) return;
+        
+        // Wyślij powiadomienie o przeczytaniu wiadomości
+        socket.emit('message_seen', {
+            conversation_id: parseInt(conversationId),
+            recipient_id: parseInt(recipientId),
+            user_id: currentUserId,
+            seen_at: new Date().toISOString()
+        });
+    }
+    
+    // Aktualizacja statusu "seen" dla wiadomości
+    function updateMessageSeenStatus(seenAt) {
+        // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
+        const myMessages = $('.message-item.my-message');
+        
+        // Dodaj status "seen" tylko do ostatniej wiadomości
+        if (myMessages.length > 0) {
+            const lastMessage = myMessages.last();
+            
+            // Sprawdź, czy już ma status "seen"
+            if (!lastMessage.find('.message-seen').length) {
+                // Dodaj status "seen" do ostatniej wiadomości
+                lastMessage.find('.message-time').after(`
+                    <div class="message-seen">
+                        Wyświetlono ${formatTime(seenAt)}
+                    </div>
+                `);
+            } else {
+                // Zaktualizuj istniejący status "seen"
+                lastMessage.find('.message-seen').text(`Wyświetlono ${formatTime(seenAt)}`);
+            }
+        }
+    }
+    
+    // Wysyłanie powiadomienia o przeczytaniu wiadomości
+    function sendMessageSeenNotification(conversationId, recipientId) {
+        if (!conversationId || !recipientId || !socket.connected) return;
+        
+        // Wyślij powiadomienie o przeczytaniu wiadomości
+        socket.emit('message_seen', {
+            conversation_id: parseInt(conversationId),
+            recipient_id: parseInt(recipientId),
+            user_id: currentUserId,
+            seen_at: new Date().toISOString()
+        });
+    }
+    
+    // Aktualizacja statusu "seen" dla wiadomości
+    function updateMessageSeenStatus(seenAt) {
+        // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
+        const myMessages = $('.message-item.my-message');
+        
+        // Dodaj status "seen" tylko do ostatniej wiadomości
+        if (myMessages.length > 0) {
+            const lastMessage = myMessages.last();
+            
+            // Sprawdź, czy już ma status "seen"
+            if (!lastMessage.find('.message-seen').length) {
+                // Dodaj status "seen" do ostatniej wiadomości
+                lastMessage.find('.message-time').after(`
+                    <div class="message-seen">
+                        Wyświetlono ${formatTime(seenAt)}
+                    </div>
+                `);
+            } else {
+                // Zaktualizuj istniejący status "seen"
+                lastMessage.find('.message-seen').text(`Wyświetlono ${formatTime(seenAt)}`);
+            }
         }
     }
 
@@ -414,6 +504,9 @@ function notifyNewMessage(conversationId) {
         $('#messenger-recipient-id').val('');
         $('#messenger-conversation-id').val(conversationId);
         
+        // Pobierz ID odbiorcy z konwersacji
+        const recipientId = getRecipientIdFromConversation(conversationId);
+        
         // Sprawdź, czy konwersacja jest zarchiwizowana
         const isArchived = $(`.conversation-item[data-conversation-id="${conversationId}"]`).hasClass('archived');
         const toggleArchiveBtn = $('.toggle-archive-btn');
@@ -448,6 +541,16 @@ function notifyNewMessage(conversationId) {
 
                     // Przewiń do najnowszej wiadomości
                     scrollToBottom();
+                    
+                    // Wyślij powiadomienie o przeczytaniu wiadomości
+                    if (recipientId) {
+                        socket.emit('message_seen', {
+                            conversation_id: parseInt(conversationId),
+                            recipient_id: parseInt(recipientId),
+                            user_id: currentUserId,
+                            seen_at: new Date().toISOString()
+                        });
+                    }
 
                     // Pokaż pole wpisywania wiadomości
                     $('.messenger-input').show();
@@ -689,6 +792,8 @@ function notifyNewMessage(conversationId) {
         const sentAt = message.sent_at || new Date().toISOString();
         const isMine = !!message.is_mine; // konwersja na boolean
         const attachment = message.attachment || null;
+        const messageId = message.id || 'msg-' + Date.now();
+        const readAt = message.read_at || null;
 
         // Debugowanie
         console.log('Dane wiadomości:', {
@@ -698,7 +803,9 @@ function notifyNewMessage(conversationId) {
             senderAvatar: senderAvatar,
             sentAt: sentAt,
             isMine: isMine,
-            attachment: attachment
+            attachment: attachment,
+            messageId: messageId,
+            readAt: readAt
         });
 
         // Określ klasę wiadomości
@@ -725,8 +832,18 @@ function notifyNewMessage(conversationId) {
             `;
         }
 
+        // Przygotuj HTML dla statusu przeczytania, jeśli to moja wiadomość
+        let readStatusHtml = '';
+        if (isMine) {
+            if (readAt) {
+                readStatusHtml = `<div class="message-read">Przeczytano ${formatTime(readAt)}</div>`;
+            } else {
+                readStatusHtml = `<div class="message-not-read">Nieprzeczytane</div>`;
+            }
+        }
+
         const messageHtml = `
-        <div class="message-item ${messageClass}" data-sender-id="${senderId}">
+        <div class="message-item ${messageClass}" data-sender-id="${senderId}" data-message-id="${messageId}">
             ${!isMine ? `
                 <div class="message-avatar">
                     <img src="${senderAvatar}" alt="${senderName}">
@@ -735,6 +852,7 @@ function notifyNewMessage(conversationId) {
                 <div class="message-text">${messageContent}</div>
                 ${attachmentHtml}
                 <div class="message-time">${formatTime(sentAt)}</div>
+                ${readStatusHtml}
             </div>
         </div>
     `;
@@ -742,6 +860,78 @@ function notifyNewMessage(conversationId) {
         $('.messenger-messages').append(messageHtml);
         
         scrollToBottom();
+    }
+    
+    // Oznaczanie wiadomości jako przeczytane
+    function markMessagesAsRead(conversationId) {
+        if (!conversationId) return;
+        
+        // Pobierz ID odbiorcy
+        const recipientId = getRecipientIdFromConversation(conversationId);
+        
+        // Wyślij żądanie AJAX do oznaczenia wiadomości jako przeczytane
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'mark_messages_as_read',
+                conversation_id: conversationId,
+                nonce: messengerChat.nonce
+            },
+            success: function(response) {
+                console.log('Wiadomości oznaczone jako przeczytane:', response);
+            },
+            error: function(xhr, status, error) {
+                console.error('Błąd podczas oznaczania wiadomości jako przeczytane:', status, error);
+            }
+        });
+    }
+    
+    // Aktualizacja wskaźników przeczytania dla wiadomości
+    function updateReadReceipts(conversationId, readAt) {
+        if (conversationId !== activeConversation) return;
+        
+        // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
+        $('.message-item.my-message').each(function() {
+            // Zaktualizuj status przeczytania
+            const readStatus = $(this).find('.message-not-read');
+            if (readStatus.length > 0) {
+                readStatus.removeClass('message-not-read').addClass('message-read')
+                    .text(`Przeczytano ${formatTime(readAt)}`);
+            } else {
+                // Jeśli nie ma statusu, dodaj go
+                const messageTime = $(this).find('.message-time');
+                if (messageTime.length > 0 && !$(this).find('.message-read').length) {
+                    messageTime.after(`<div class="message-read">Przeczytano ${formatTime(readAt)}</div>`);
+                }
+            }
+        });
+    }
+    
+    // Aktualizacja URL z ID konwersacji (zakodowane base64)
+    function updateUrlWithConversationId(conversationId) {
+        if (!conversationId) return;
+        
+        // Utwórz nowy obiekt URLSearchParams z bieżącego URL
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Zakoduj ID konwersacji za pomocą base64
+        const encodedId = btoa(conversationId.toString());
+        
+        // Ustaw parametr conversation
+        urlParams.set('conversation', encodedId);
+        
+        // Zaktualizuj URL bez przeładowania strony
+        const newUrl = window.location.pathname + '?' + urlParams.toString();
+        window.history.pushState({path: newUrl}, '', newUrl);
+    }
+
+    // Przewijanie do najnowszej wiadomości
+    function scrollToBottom() {
+        const messagesContainer = $('.messenger-messages');
+        messagesContainer.stop().animate({
+            scrollTop: messagesContainer[0].scrollHeight
+        }, 300);
     }
     
     // Formatowanie czasu
@@ -792,32 +982,6 @@ function notifyNewMessage(conversationId) {
             console.error('Błąd formatowania czasu:', e);
             return 'teraz';
         }
-    }
-
-    // Aktualizacja URL z ID konwersacji (zakodowane base64)
-    function updateUrlWithConversationId(conversationId) {
-        if (!conversationId) return;
-        
-        // Utwórz nowy obiekt URLSearchParams z bieżącego URL
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        // Zakoduj ID konwersacji za pomocą base64
-        const encodedId = btoa(conversationId.toString());
-        
-        // Ustaw parametr conversation
-        urlParams.set('conversation', encodedId);
-        
-        // Zaktualizuj URL bez przeładowania strony
-        const newUrl = window.location.pathname + '?' + urlParams.toString();
-        window.history.pushState({path: newUrl}, '', newUrl);
-    }
-
-    // Przewijanie do najnowszej wiadomości
-    function scrollToBottom() {
-        const messagesContainer = $('.messenger-messages');
-        messagesContainer.stop().animate({
-            scrollTop: messagesContainer[0].scrollHeight
-        }, 300);
     }
     
     // Archiwizacja konwersacji

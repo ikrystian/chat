@@ -48,6 +48,12 @@ class WP_Messenger_Chat_API {
         
         // Ajax dla pobrania usuniętych konwersacji
         add_action('wp_ajax_get_deleted_conversations', array($this, 'get_deleted_conversations'));
+        
+        // Ajax dla oznaczania wiadomości jako przeczytane
+        add_action('wp_ajax_mark_messages_as_read', array($this, 'mark_messages_as_read'));
+        
+        // Ajax dla pobrania statusu przeczytania wiadomości
+        add_action('wp_ajax_get_message_read_status', array($this, 'get_message_read_status'));
     }
 
     /**
@@ -70,6 +76,19 @@ class WP_Messenger_Chat_API {
             return;
         }
 
+        // Oznacz wiadomości jako przeczytane
+        $database->mark_messages_as_read($conversation_id, $user_id);
+        
+        // Pobierz ID odbiorcy (nadawcy wiadomości)
+        $recipient_id = $database->get_recipient_id($conversation_id, $user_id);
+        
+        // Wyślij powiadomienie o przeczytaniu wiadomości przez WebSocket
+        if ($recipient_id) {
+            require_once WP_MESSENGER_CHAT_DIR . 'includes/class-websocket.php';
+            $websocket = new WP_Messenger_Chat_WebSocket();
+            $websocket->send_read_receipt($conversation_id, $recipient_id, $user_id);
+        }
+
         wp_send_json_success($messages);
     }
 
@@ -87,6 +106,9 @@ class WP_Messenger_Chat_API {
         $database = new WP_Messenger_Chat_Database();
         $conversations = $database->get_user_conversations($user_id);
         
+        // Pobierz liczbę nieprzeczytanych wiadomości dla każdej konwersacji
+        $unread_counts = $database->get_unread_messages_count($user_id);
+        
         // Przygotuj HTML z listą konwersacji
         ob_start();
         
@@ -94,8 +116,9 @@ class WP_Messenger_Chat_API {
             echo '<div class="no-conversations">Brak konwersacji</div>';
         } else {
             foreach ($conversations as $conv) {
-                $has_unread = false; // Tu można dodać logikę nieprzeczytanych wiadomości
+                $has_unread = isset($unread_counts[$conv->id]) && $unread_counts[$conv->id] > 0;
                 $unread_class = $has_unread ? 'has-new-message' : '';
+                $unread_badge = $has_unread ? '<span class="unread-badge">' . $unread_counts[$conv->id] . '</span>' : '';
                 
                 ?>
                 <div class="conversation-item <?php echo $unread_class; ?>" data-conversation-id="<?php echo esc_attr($conv->id); ?>" data-recipient-id="<?php echo esc_attr($conv->other_user_id); ?>">
@@ -106,6 +129,7 @@ class WP_Messenger_Chat_API {
                         <div class="user-name"><?php echo esc_html($conv->other_user_name); ?></div>
                         <div class="last-message"><?php echo esc_html($conv->last_message); ?></div>
                     </div>
+                    <?php echo $unread_badge; ?>
                 </div>
                 <?php
             }
@@ -426,5 +450,72 @@ class WP_Messenger_Chat_API {
         
         $html = ob_get_clean();
         wp_send_json_success($html);
+    }
+    
+    /**
+     * Obsługuje oznaczanie wiadomości jako przeczytane
+     */
+    public function mark_messages_as_read() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if ($conversation_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID konwersacji'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Oznacz wiadomości jako przeczytane
+        $result = $database->mark_messages_as_read($conversation_id, $user_id);
+        
+        // Pobierz ID odbiorcy (nadawcy wiadomości)
+        $recipient_id = $database->get_recipient_id($conversation_id, $user_id);
+        
+        if ($result) {
+            // Załaduj klasę WebSocket
+            require_once WP_MESSENGER_CHAT_DIR . 'includes/class-websocket.php';
+            $websocket = new WP_Messenger_Chat_WebSocket();
+            
+            // Wyślij powiadomienie o przeczytaniu wiadomości
+            $websocket->send_read_receipt($conversation_id, $recipient_id, $user_id);
+            
+            wp_send_json_success(array('message' => 'Wiadomości oznaczone jako przeczytane'));
+        } else {
+            wp_send_json_error(array('message' => 'Nie udało się oznaczyć wiadomości jako przeczytane'));
+        }
+    }
+    
+    /**
+     * Obsługuje pobieranie statusu przeczytania wiadomości
+     */
+    public function get_message_read_status() {
+        // Sprawdź nonce
+        check_ajax_referer('messenger_chat_nonce', 'nonce');
+        
+        $message_id = isset($_POST['message_id']) ? intval($_POST['message_id']) : 0;
+        
+        if ($message_id <= 0) {
+            wp_send_json_error(array('message' => 'Nieprawidłowe ID wiadomości'));
+            return;
+        }
+        
+        // Załaduj klasę bazy danych
+        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
+        $database = new WP_Messenger_Chat_Database();
+        
+        // Sprawdź status przeczytania
+        $read_at = $database->is_message_read($message_id);
+        
+        wp_send_json_success(array(
+            'message_id' => $message_id,
+            'is_read' => $read_at !== false,
+            'read_at' => $read_at
+        ));
     }
 }

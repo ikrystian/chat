@@ -73,6 +73,27 @@ class WP_Messenger_Chat_WebSocket {
     }
 
     /**
+     * Wysyła powiadomienie o przeczytaniu wiadomości
+     *
+     * @param int $conversation_id ID konwersacji
+     * @param int $recipient_id ID odbiorcy (nadawcy wiadomości)
+     * @param int $user_id ID użytkownika, który przeczytał wiadomość
+     * @return bool Czy wysłano pomyślnie
+     */
+    public function send_read_receipt($conversation_id, $recipient_id, $user_id) {
+        // Dane dla powiadomienia o przeczytaniu
+        $socket_data = array(
+            'conversation_id' => $conversation_id,
+            'recipient_id' => $recipient_id,
+            'reader_id' => $user_id,
+            'type' => 'read_receipt',
+            'read_at' => current_time('mysql')
+        );
+
+        return $this->send_to_server($socket_data);
+    }
+
+    /**
      * Wysyła dane do serwera WebSocket
      *
      * @param array $data Dane do wysłania

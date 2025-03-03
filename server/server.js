@@ -23,8 +23,15 @@ app.post('/send-message', (req, res) => {
 
     // Sprawdź, czy odbiorca jest online
     if (activeUsers[data.recipient_id]) {
-        // Sprawdź, czy to nowa konwersacja
-        if (data.hasOwnProperty('sender_id') && data.hasOwnProperty('sender_name')) {
+        // Sprawdź typ wiadomości
+        if (data.type === 'read_receipt') {
+            // To jest powiadomienie o przeczytaniu wiadomości
+            io.to(activeUsers[data.recipient_id]).emit('message_read', {
+                conversation_id: data.conversation_id,
+                reader_id: data.reader_id,
+                read_at: data.read_at
+            });
+        } else if (data.hasOwnProperty('sender_id') && data.hasOwnProperty('sender_name')) {
             // To jest nowa konwersacja
             io.to(activeUsers[data.recipient_id]).emit('new_conversation', {
                 conversation_id: data.conversation_id,
