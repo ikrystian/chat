@@ -24,13 +24,18 @@ class WP_Messenger_Chat_Admin {
             $websocket_server = isset($_POST['messenger_chat_websocket_server']) ? 
                 esc_url_raw($_POST['messenger_chat_websocket_server']) : 'ws://localhost:3000';
             
+            $chat_page = isset($_POST['messenger_chat_page']) ? 
+                esc_url_raw($_POST['messenger_chat_page']) : home_url();
+            
             update_option('messenger_chat_websocket_server', $websocket_server);
+            update_option('messenger_chat_page', $chat_page);
             
             echo '<div class="notice notice-success is-dismissible"><p>Ustawienia zostały zapisane.</p></div>';
         }
         
         // Pobierz aktualne ustawienia
         $websocket_server = get_option('messenger_chat_websocket_server', 'ws://localhost:3000');
+        $chat_page = get_option('messenger_chat_page', home_url());
         
         // Wyświetl formularz ustawień
         ?>
@@ -48,6 +53,16 @@ class WP_Messenger_Chat_Admin {
                                 value="<?php echo esc_attr($websocket_server); ?>" class="regular-text">
                             <p class="description">
                                 Adres serwera WebSocket, np. ws://localhost:3000 (dla WebSocket) lub http://localhost:3000 (dla HTTP).
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="messenger_chat_page">Strona czatu</label></th>
+                        <td>
+                            <input type="text" id="messenger_chat_page" name="messenger_chat_page" 
+                                value="<?php echo esc_attr($chat_page); ?>" class="regular-text">
+                            <p class="description">
+                                URL strony, na której umieszczony jest shortcode [messenger_chat]. Ta strona będzie używana w linkach w powiadomieniach email.
                             </p>
                         </td>
                     </tr>

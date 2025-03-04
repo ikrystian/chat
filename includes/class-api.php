@@ -292,6 +292,9 @@ class WP_Messenger_Chat_API {
             // Wyślij powiadomienie przez WebSocket
             if ($is_new_conversation) {
                 $websocket->send_new_conversation($conversation_id, $recipient_id, $user_id, $sender, $new_message);
+                
+                // Wyślij powiadomienie email o nowej konwersacji
+                $this->send_new_conversation_email($conversation_id, $recipient_id, $user_id, $sender, $new_message);
             } else {
                 $websocket->send_message($conversation_id, $recipient_id, $new_message);
             }
@@ -785,6 +788,72 @@ class WP_Messenger_Chat_API {
         
         $html = ob_get_clean();
         wp_send_json_success($html);
+    }
+    
+    /**
+     * Wysyła powiadomienie email o nowej konwersacji
+     *
+     * @param int $conversation_id ID konwersacji
+     * @param int $recipient_id ID odbiorcy
+     * @param int $sender_id ID nadawcy
+     * @param object $sender Obiekt użytkownika nadawcy
+     * @param object $message Obiekt wiadomości
+     * @return bool Czy wysłano pomyślnie
+     */
+    private function send_new_conversation_email($conversation_id, $recipient_id, $sender_id, $sender, $message) {
+        // Pobierz dane odbiorcy
+        $recipient = get_userdata($recipient_id);
+        
+        if (!$recipient || !is_object($recipient) || !isset($recipient->user_email)) {
+            return false;
+        }
+        
+        // Przygotuj dane do emaila
+        $site_name = get_bloginfo('name');
+        $site_url = get_bloginfo('url');
+        $chat_page_url = get_option('messenger_chat_page', home_url());
+        
+        // Dodaj parametr do URL, aby automatycznie otworzyć konwersację
+        $chat_url = add_query_arg('chat_with', $sender_id, $chat_page_url);
+        
+        // Przygotuj treść wiadomości
+        $message_content = !empty($message->message) ? $message->message : '(Załącznik)';
+        if (strlen($message_content) > 100) {
+            $message_content = substr($message_content, 0, 97) . '...';
+        }
+        
+        // Temat emaila
+        $subject = sprintf(__('Nowa wiadomość od %s na %s', 'wp-messenger-chat'), $sender->display_name, $site_name);
+        
+        // Treść emaila
+        $body = sprintf(
+            __('Witaj %s,
+
+Otrzymałeś nową wiadomość od %s na %s.
+
+Treść wiadomości:
+"%s"
+
+Kliknij poniższy link, aby odpowiedzieć:
+%s
+
+Pozdrawiamy,
+Zespół %s', 'wp-messenger-chat'),
+            $recipient->display_name,
+            $sender->display_name,
+            $site_name,
+            $message_content,
+            $chat_url,
+            $site_name
+        );
+        
+        // Nagłówki emaila
+        $headers = array('Content-Type: text/plain; charset=UTF-8');
+        
+        // Wyślij email
+        $result = wp_mail($recipient->user_email, $subject, $body, $headers);
+        
+        return $result;
     }
     
     /**
