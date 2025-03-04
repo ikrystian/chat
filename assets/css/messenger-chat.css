@@ -699,8 +699,6 @@
         right: 15px;
         top: 50%;
         transform: translateY(-50%);
-
-
         font-size: 12px;
         font-weight: bold;
         min-width: 20px;
@@ -1025,6 +1023,33 @@
 
         line-height: 1.5;
         margin: 0;
+    }
+    
+    /* Style dla danych rozliczeniowych WooCommerce */
+    .user-info-billing-section {
+        margin-bottom: 20px;
+    }
+    
+    .user-info-billing-fields {
+        margin-top: 10px;
+    }
+    
+    .billing-field {
+        display: flex;
+        margin-bottom: 5px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    
+    .billing-label {
+        font-weight: 600;
+        margin-right: 5px;
+        min-width: 120px;
+    }
+    
+    .billing-value {
+        flex: 1;
+        word-break: break-word;
     }
 
     /* Przyciski akcji użytkownika */

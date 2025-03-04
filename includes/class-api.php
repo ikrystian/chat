@@ -711,6 +711,38 @@ class WP_Messenger_Chat_API {
         // Dodaj dodatkowe pola profilu, jeśli istnieją
         $user_info['description'] = get_user_meta($user->ID, 'description', true);
         
+        // Dodaj informacje z formularza WooCommerce billing, jeśli istnieją
+        if (class_exists('WooCommerce')) {
+            $billing_fields = array(
+                'billing_first_name' => 'Imię',
+                'billing_last_name' => 'Nazwisko',
+                'billing_company' => 'Firma',
+                'billing_address_1' => 'Adres',
+                'billing_address_2' => 'Adres (c.d.)',
+                'billing_city' => 'Miasto',
+                'billing_postcode' => 'Kod pocztowy',
+                'billing_country' => 'Kraj',
+                'billing_state' => 'Województwo',
+                'billing_phone' => 'Telefon',
+                'billing_email' => 'Email'
+            );
+            
+            $billing_info = array();
+            foreach ($billing_fields as $field_key => $field_label) {
+                $value = get_user_meta($user->ID, $field_key, true);
+                if (!empty($value)) {
+                    $billing_info[$field_key] = array(
+                        'label' => $field_label,
+                        'value' => $value
+                    );
+                }
+            }
+            
+            if (!empty($billing_info)) {
+                $user_info['billing'] = $billing_info;
+            }
+        }
+        
         wp_send_json_success($user_info);
     }
     

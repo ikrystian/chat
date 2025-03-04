@@ -1700,6 +1700,27 @@ function notifyNewMessage(conversationId) {
             $('.user-info-section:nth-last-child(2)').show();
         }
         
+        // Dodaj informacje z WooCommerce billing (jeśli istnieją)
+        // Najpierw usuń istniejące sekcje billing, jeśli istnieją
+        $('.user-info-billing-section').remove();
+        
+        if (userData.billing && Object.keys(userData.billing).length > 0) {
+            
+            // Dodaj poszczególne pola
+            const billingFields = $('<div class="user-info-billing-fields"></div>');
+            billingHeader.append(billingFields);
+            
+            // Iteruj przez pola billing
+            Object.values(userData.billing).forEach(field => {
+                billingFields.append(`
+                    <div class="billing-field">
+                        <span class="billing-label">${field.label}:</span>
+                        <span class="billing-value">${field.value}</span>
+                    </div>
+                `);
+            });
+        }
+        
         // Ustaw przyciski blokowania/odblokowania
         const blockUserBtn = $('.block-user-btn');
         const unblockUserBtn = $('.unblock-user-btn');
