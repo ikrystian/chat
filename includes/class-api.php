@@ -280,7 +280,19 @@ class WP_Messenger_Chat_API {
 
             // Dodaj dane nadawcy
             $sender = get_userdata($user_id);
-            $new_message->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            
+            // Pobierz imię i nazwisko nadawcy
+            $first_name = get_user_meta($user_id, 'first_name', true);
+            $last_name = get_user_meta($user_id, 'last_name', true);
+            
+            // Jeśli imię i nazwisko są dostępne, użyj ich
+            if (!empty($first_name) && !empty($last_name)) {
+                $new_message->sender_name = $first_name . ' ' . $last_name;
+            } else {
+                // W przeciwnym razie użyj display_name
+                $new_message->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            }
+            
             $new_message->sender_avatar = get_avatar_url($user_id);
             $new_message->is_mine = true;
 
@@ -660,10 +672,20 @@ class WP_Messenger_Chat_API {
         $current_user_id = get_current_user_id();
         $is_blocked = $database->is_user_blocked($current_user_id, $user_id);
         
+        // Pobierz imię i nazwisko użytkownika
+        $first_name = get_user_meta($user_id, 'first_name', true);
+        $last_name = get_user_meta($user_id, 'last_name', true);
+        
+        // Ustal nazwę użytkownika do wyświetlenia
+        $display_name = $user->display_name;
+        if (!empty($first_name) && !empty($last_name)) {
+            $display_name = $first_name . ' ' . $last_name;
+        }
+        
         // Przygotuj dane użytkownika do wyświetlenia
         $user_info = array(
             'id' => $user->ID,
-            'display_name' => $user->display_name,
+            'display_name' => $display_name,
             'user_email' => $user->user_email,
             'user_registered' => date_i18n(get_option('date_format'), strtotime($user->user_registered)),
             'avatar' => get_avatar_url($user->ID, array('size' => 150)),
@@ -808,6 +830,16 @@ class WP_Messenger_Chat_API {
             return false;
         }
         
+        // Pobierz imię i nazwisko odbiorcy
+        $first_name = get_user_meta($recipient_id, 'first_name', true);
+        $last_name = get_user_meta($recipient_id, 'last_name', true);
+        
+        // Ustal nazwę odbiorcy do wyświetlenia
+        $recipient_name = $recipient->display_name;
+        if (!empty($first_name) && !empty($last_name)) {
+            $recipient_name = $first_name . ' ' . $last_name;
+        }
+        
         // Przygotuj dane do emaila
         $site_name = get_bloginfo('name');
         $site_url = get_bloginfo('url');
@@ -822,8 +854,18 @@ class WP_Messenger_Chat_API {
             $message_content = substr($message_content, 0, 97) . '...';
         }
         
+        // Pobierz imię i nazwisko nadawcy
+        $sender_first_name = get_user_meta($sender_id, 'first_name', true);
+        $sender_last_name = get_user_meta($sender_id, 'last_name', true);
+        
+        // Ustal nazwę nadawcy do wyświetlenia
+        $sender_name = $sender->display_name;
+        if (!empty($sender_first_name) && !empty($sender_last_name)) {
+            $sender_name = $sender_first_name . ' ' . $sender_last_name;
+        }
+        
         // Temat emaila
-        $subject = sprintf(__('Nowa wiadomość od %s na %s', 'wp-messenger-chat'), $sender->display_name, $site_name);
+        $subject = sprintf(__('Nowa wiadomość od %s na %s', 'wp-messenger-chat'), $sender_name, $site_name);
         
         // Treść emaila
         $body = sprintf(
@@ -839,7 +881,7 @@ Kliknij poniższy link, aby odpowiedzieć:
 
 Pozdrawiamy,
 Zespół %s', 'wp-messenger-chat'),
-            $recipient->display_name,
+            $recipient_name,
             $sender->display_name,
             $site_name,
             $message_content,

@@ -120,7 +120,19 @@ class WP_Messenger_Chat_Database {
             
             if ($conv->other_user_id) {
                 $user = get_userdata($conv->other_user_id);
-                $conv->other_user_name = $user ? $user->display_name : 'Nieznany użytkownik';
+                
+                // Pobierz imię i nazwisko użytkownika
+                $first_name = get_user_meta($conv->other_user_id, 'first_name', true);
+                $last_name = get_user_meta($conv->other_user_id, 'last_name', true);
+                
+                // Jeśli imię i nazwisko są dostępne, użyj ich
+                if (!empty($first_name) && !empty($last_name)) {
+                    $conv->other_user_name = $first_name . ' ' . $last_name;
+                } else {
+                    // W przeciwnym razie użyj display_name
+                    $conv->other_user_name = $user ? $user->display_name : 'Nieznany użytkownik';
+                }
+                
                 $conv->other_user_avatar = get_avatar_url($conv->other_user_id);
             }
         }
@@ -162,7 +174,19 @@ class WP_Messenger_Chat_Database {
             $message->message = $encryption->decrypt($message->message);
             
             $sender = get_userdata($message->sender_id);
-            $message->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            
+            // Pobierz imię i nazwisko nadawcy
+            $first_name = get_user_meta($message->sender_id, 'first_name', true);
+            $last_name = get_user_meta($message->sender_id, 'last_name', true);
+            
+            // Jeśli imię i nazwisko są dostępne, użyj ich
+            if (!empty($first_name) && !empty($last_name)) {
+                $message->sender_name = $first_name . ' ' . $last_name;
+            } else {
+                // W przeciwnym razie użyj display_name
+                $message->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            }
+            
             $message->sender_avatar = get_avatar_url($message->sender_id);
             $message->is_mine = ($message->sender_id == $user_id);
         }
@@ -494,7 +518,19 @@ class WP_Messenger_Chat_Database {
         // Dodaj dane nadawców
         foreach ($attachments as $attachment) {
             $sender = get_userdata($attachment->sender_id);
-            $attachment->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            
+            // Pobierz imię i nazwisko nadawcy
+            $first_name = get_user_meta($attachment->sender_id, 'first_name', true);
+            $last_name = get_user_meta($attachment->sender_id, 'last_name', true);
+            
+            // Jeśli imię i nazwisko są dostępne, użyj ich
+            if (!empty($first_name) && !empty($last_name)) {
+                $attachment->sender_name = $first_name . ' ' . $last_name;
+            } else {
+                // W przeciwnym razie użyj display_name
+                $attachment->sender_name = $sender ? $sender->display_name : 'Nieznany';
+            }
+            
             $attachment->is_mine = ($attachment->sender_id == $user_id);
         }
 
@@ -634,7 +670,19 @@ class WP_Messenger_Chat_Database {
         // Dodaj dane użytkowników
         foreach ($blocked_users as $blocked_user) {
             $user = get_userdata($blocked_user->blocked_user_id);
-            $blocked_user->display_name = $user ? $user->display_name : 'Nieznany użytkownik';
+            
+            // Pobierz imię i nazwisko użytkownika
+            $first_name = get_user_meta($blocked_user->blocked_user_id, 'first_name', true);
+            $last_name = get_user_meta($blocked_user->blocked_user_id, 'last_name', true);
+            
+            // Jeśli imię i nazwisko są dostępne, użyj ich
+            if (!empty($first_name) && !empty($last_name)) {
+                $blocked_user->display_name = $first_name . ' ' . $last_name;
+            } else {
+                // W przeciwnym razie użyj display_name
+                $blocked_user->display_name = $user ? $user->display_name : 'Nieznany użytkownik';
+            }
+            
             $blocked_user->avatar = get_avatar_url($blocked_user->blocked_user_id);
         }
 

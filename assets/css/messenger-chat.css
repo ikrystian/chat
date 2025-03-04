@@ -435,6 +435,10 @@
     .my-message .pdf-attachment {
         background-color: #D7B56C;
 
+        &:hover {
+            color: #fff;
+        }
+
     }
 
     .their-message .pdf-attachment {
