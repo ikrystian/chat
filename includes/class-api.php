@@ -85,31 +85,44 @@ class WP_Messenger_Chat_API {
 
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
         $user_id = get_current_user_id();
+        
+        // Parametry paginacji
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 20; // Domyślnie 20 wiadomości
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
 
         // Pobierz wiadomości
         require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
         $database = new WP_Messenger_Chat_Database();
-        $messages = $database->get_messages($conversation_id, $user_id);
+        $messages = $database->get_messages($conversation_id, $user_id, $limit, $offset);
 
         if ($messages === false) {
             wp_send_json_error(array('message' => 'Brak dostępu do tej konwersacji'));
             return;
         }
 
-        // Oznacz wiadomości jako przeczytane
-        $database->mark_messages_as_read($conversation_id, $user_id);
-        
-        // Pobierz ID odbiorcy (nadawcy wiadomości)
-        $recipient_id = $database->get_recipient_id($conversation_id, $user_id);
-        
-        // Wyślij powiadomienie o przeczytaniu wiadomości przez WebSocket
-        if ($recipient_id) {
-            require_once WP_MESSENGER_CHAT_DIR . 'includes/class-websocket.php';
-            $websocket = new WP_Messenger_Chat_WebSocket();
-            $websocket->send_read_receipt($conversation_id, $recipient_id, $user_id);
+        // Oznacz wiadomości jako przeczytane tylko przy pierwszym ładowaniu (offset = 0)
+        if ($offset === 0) {
+            $database->mark_messages_as_read($conversation_id, $user_id);
+            
+            // Pobierz ID odbiorcy (nadawcy wiadomości)
+            $recipient_id = $database->get_recipient_id($conversation_id, $user_id);
+            
+            // Wyślij powiadomienie o przeczytaniu wiadomości przez WebSocket
+            if ($recipient_id) {
+                require_once WP_MESSENGER_CHAT_DIR . 'includes/class-websocket.php';
+                $websocket = new WP_Messenger_Chat_WebSocket();
+                $websocket->send_read_receipt($conversation_id, $recipient_id, $user_id);
+            }
         }
+        
+        // Pobierz całkowitą liczbę wiadomości w konwersacji
+        $total_messages = $database->get_messages_count($conversation_id);
 
-        wp_send_json_success($messages);
+        wp_send_json_success(array(
+            'messages' => $messages,
+            'total' => $total_messages,
+            'has_more' => ($offset + $limit < $total_messages)
+        ));
     }
 
     /**
