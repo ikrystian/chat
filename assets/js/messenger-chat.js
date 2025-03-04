@@ -35,6 +35,16 @@
             }
         });
         
+        socket.on('new_conversation', function(data) {
+            console.log('Otrzymano nową konwersację:', data);
+
+            // Odśwież listę konwersacji, aby pokazać nową konwersację
+            refreshConversationsList();
+            
+            // Powiadomienie o nowej wiadomości
+            playNotificationSound();
+        });
+        
         socket.on('message_read', function (data) {
             console.log('Otrzymano potwierdzenie przeczytania:', data);
             

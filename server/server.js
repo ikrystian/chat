@@ -69,65 +69,6 @@ io.on('connection', (socket) => {
         console.log(`Użytkownik ${userId} zarejestrowany`);
     });
 
-// Dodaj to do sekcji inicjalizacji WebSocket w messenger-chat.js
-// po istniejącym kodzie dla socket.on('new_message', ...)
-
-    socket.on('new_conversation', function(data) {
-        console.log('Otrzymano nową konwersację:', data);
-
-        // Sprawdź, czy konwersacja już istnieje na liście
-        const existingConversation = $(`.conversation-item[data-conversation-id="${data.conversation_id}"]`);
-
-        if (existingConversation.length === 0) {
-            // Dodaj nową konwersację do listy
-            const conversationHtml = `
-            <div class="conversation-item has-new-message" data-conversation-id="${data.conversation_id}" data-recipient-id="${data.sender_id}">
-                <div class="conversation-avatar">
-                    <img src="${data.sender_avatar}" alt="${data.sender_name}">
-                </div>
-                <div class="conversation-info">
-                    <div class="conversation-header">
-                        <span class="user-name">${data.sender_name}</span>
-                        <span class="conversation-time">teraz</span>
-                    </div>
-                    <div class="conversation-preview">
-                        ${data.sender_name}: ${data.message.message.substring(0, 40)}${data.message.message.length > 40 ? '...' : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-
-            // Dodaj na górę listy konwersacji
-            $('.messenger-conversations-list').prepend(conversationHtml);
-
-            // Jeśli lista była pusta, usuń komunikat o braku konwersacji
-            $('.empty-state').remove();
-        } else {
-            // Zaktualizuj istniejącą konwersację
-            existingConversation.addClass('has-new-message');
-            existingConversation.find('.conversation-preview').text(
-                `${data.sender_name}: ${data.message.message.substring(0, 40)}${data.message.message.length > 40 ? '...' : ''}`
-            );
-            existingConversation.find('.conversation-time').text('teraz');
-
-            // Przenieś konwersację na górę listy
-            $('.messenger-conversations-list').prepend(existingConversation);
-        }
-
-        // Powiadomienie o nowej wiadomości
-        playNotificationSound();
-
-        // Jeśli jesteśmy już w tej konwersacji, dodaj wiadomość do czatu
-        if (activeConversation === parseInt(data.conversation_id)) {
-            appendMessage(data.message);
-            scrollToBottom();
-        }
-
-        // Przełącz widok na zakładkę konwersacji, jeśli jesteśmy w zakładce kontaktów
-        if ($('.messenger-tabs a[data-tab="contacts"]').hasClass('active')) {
-            $('.messenger-tabs a[data-tab="conversations"]').click();
-        }
-    });
     socket.on('direct_message', (data) => {
         const recipientId = data.recipient_id;
 

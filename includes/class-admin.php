@@ -33,7 +33,7 @@ class WP_Messenger_Chat_Admin {
             echo '<div class="notice notice-success is-dismissible"><p>Ustawienia zostały zapisane.</p></div>';
         }
                 // Pobierz aktualne ustawienia
-        $websocket_server = get_option('messenger_chat_websocket_server', 'ws://localhost:3000');
+        $websocket_server = 'ws://localhost:3000';
         $chat_page = get_option('messenger_chat_page', home_url());
         
         // Wyświetl formularz ustawień
