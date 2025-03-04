@@ -628,7 +628,7 @@ function notifyNewMessage(conversationId) {
         window.isLoadingMoreMessages = false;
 
         // Pobierz wiadomości (początkowo tylko 20 najnowszych)
-        loadMessages(conversationId, 5, 0, function() {
+        loadMessages(conversationId, 20, 0, function() {
             // Przewiń do najnowszej wiadomości
             scrollToBottom();
             
