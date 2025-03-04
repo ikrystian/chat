@@ -122,7 +122,7 @@
                 <input type="hidden" id="messenger-conversation-id" value="0">
                 <input type="hidden" id="messenger-recipient-id" value="0">
                 <div class="messenger-input-container">
-                    <textarea id="messenger-message" placeholder="Napisz wiadomość..."></textarea>
+                    <textarea id="messenger-message" placeholder="Napisz wiadomość..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); document.getElementById('messenger-send-btn').click(); return false;}"></textarea>
                     <div class="messenger-attachments-preview" id="messenger-attachments-preview"></div>
                 </div>
                 <div class="messenger-actions">
