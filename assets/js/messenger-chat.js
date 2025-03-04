@@ -622,52 +622,124 @@ function notifyNewMessage(conversationId) {
             toggleArchiveBtn.find('i').removeClass('dashicons-undo').addClass('dashicons-archive');
         }
 
-        // Pobierz wiadomości
+        // Resetuj zmienne paginacji
+        window.messagesOffset = 0;
+        window.hasMoreMessages = true;
+        window.isLoadingMoreMessages = false;
+
+        // Pobierz wiadomości (początkowo tylko 20 najnowszych)
+        loadMessages(conversationId, 5, 0, function() {
+            // Przewiń do najnowszej wiadomości
+            scrollToBottom();
+            
+            // Wyślij powiadomienie o przeczytaniu wiadomości
+            if (recipientId) {
+                socket.emit('message_seen', {
+                    conversation_id: parseInt(conversationId),
+                    recipient_id: parseInt(recipientId),
+                    user_id: currentUserId,
+                    seen_at: new Date().toISOString()
+                });
+            }
+
+            // Pokaż pole wpisywania wiadomości
+            $('.messenger-input').show();
+
+            // Zaktualizuj nagłówek konwersacji
+            const conversationName = $(`.conversation-item[data-conversation-id="${conversationId}"]`).find('.user-name').text();
+            $('.conversation-header h3').text(conversationName);
+
+            // Pokaż czat na urządzeniach mobilnych
+            $('.messenger-conversations').removeClass('active');
+            $('.messenger-chat-area').addClass('active');
+            
+            // Dodaj obsługę przewijania dla lazy loading
+            setupScrollListener();
+        });
+    }
+    
+    // Ładowanie wiadomości z paginacją
+    function loadMessages(conversationId, limit, offset, callback) {
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
             data: {
                 action: 'get_messages',
                 conversation_id: conversationId,
+                limit: limit,
+                offset: offset,
                 nonce: messengerChat.nonce
             },
             success: function (response) {
                 $('.messenger-loading').hide();
+                
+                // Usuń wskaźnik ładowania starszych wiadomości, jeśli istnieje
+                $('.load-more-messages-indicator').remove();
 
                 if (response.success) {
-                    // Wyświetl wiadomości
-                    response.data.forEach(function (message) {
-                        appendMessage(message);
-                    });
-
-                    // Przewiń do najnowszej wiadomości
-                    scrollToBottom();
+                    // Aktualizuj zmienne paginacji
+                    window.messagesOffset = offset + limit;
+                    window.hasMoreMessages = response.data.has_more;
+                    window.isLoadingMoreMessages = false;
                     
-                    // Wyślij powiadomienie o przeczytaniu wiadomości
-                    if (recipientId) {
-                        socket.emit('message_seen', {
-                            conversation_id: parseInt(conversationId),
-                            recipient_id: parseInt(recipientId),
-                            user_id: currentUserId,
-                            seen_at: new Date().toISOString()
+                    // Zapisz pozycję przewijania i wysokość zawartości przed dodaniem nowych wiadomości
+                    const messagesContainer = $('.messenger-messages');
+                    const oldScrollHeight = messagesContainer[0].scrollHeight;
+                    const oldScrollTop = messagesContainer.scrollTop();
+                    
+                    // Wyświetl wiadomości
+                    if (offset === 0) {
+                        // Pierwsze ładowanie - dodaj wiadomości na koniec
+                        response.data.messages.forEach(function (message) {
+                            appendMessage(message);
                         });
+                    } else {
+                        // Ładowanie starszych wiadomości - dodaj na początek
+                        response.data.messages.forEach(function (message) {
+                            prependMessage(message);
+                        });
+                        
+                        // Zachowaj pozycję przewijania po dodaniu nowych wiadomości
+                        const newScrollHeight = messagesContainer[0].scrollHeight;
+                        messagesContainer.scrollTop(oldScrollTop + (newScrollHeight - oldScrollHeight));
                     }
-
-                    // Pokaż pole wpisywania wiadomości
-                    $('.messenger-input').show();
-
-                    // Zaktualizuj nagłówek konwersacji
-                    const conversationName = $(`.conversation-item[data-conversation-id="${conversationId}"]`).find('.user-name').text();
-                    $('.conversation-header h3').text(conversationName);
-
-                    // Pokaż czat na urządzeniach mobilnych
-                    $('.messenger-conversations').removeClass('active');
-                    $('.messenger-chat-area').addClass('active');
+                    
+                    // Wywołaj callback, jeśli został przekazany
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
+                } else {
+                    $('.messenger-messages').html('<div class="error-message">Błąd podczas pobierania wiadomości</div>');
                 }
             },
             error: function () {
                 $('.messenger-loading').hide();
+                $('.load-more-messages-indicator').remove();
+                window.isLoadingMoreMessages = false;
                 $('.messenger-messages').html('<div class="error-message">Błąd podczas pobierania wiadomości</div>');
+            }
+        });
+    }
+    
+    // Konfiguracja nasłuchiwania przewijania dla lazy loading
+    function setupScrollListener() {
+        const messagesContainer = $('.messenger-messages');
+        
+        // Usuń poprzedni event listener, jeśli istnieje
+        messagesContainer.off('scroll.lazyLoading');
+        
+        // Dodaj nowy event listener
+        messagesContainer.on('scroll.lazyLoading', function() {
+            // Sprawdź, czy użytkownik przewinął do góry (do najstarszych wiadomości)
+            if (messagesContainer.scrollTop() < 50 && window.hasMoreMessages && !window.isLoadingMoreMessages) {
+                // Pokaż wskaźnik ładowania
+                messagesContainer.prepend('<div class="load-more-messages-indicator">Ładowanie starszych wiadomości...</div>');
+                
+                // Ustaw flagę, aby zapobiec wielokrotnym żądaniom
+                window.isLoadingMoreMessages = true;
+                
+                // Załaduj więcej wiadomości
+                loadMessages(activeConversation, 20, window.messagesOffset);
             }
         });
     }
@@ -877,7 +949,75 @@ function notifyNewMessage(conversationId) {
     }
 
 
-// Dodawanie wiadomości do interfejsu
+// Dodawanie wiadomości na początek listy (dla starszych wiadomości)
+    function prependMessage(message) {
+        // Sprawdź, czy mamy wszystkie wymagane pola w obiekcie wiadomości
+        if (!message || typeof message !== 'object') {
+            console.error('Błąd: Obiekt wiadomości jest nieprawidłowy', message);
+            return;
+        }
+
+        // Bezpiecznie pobierz właściwości wiadomości z domyślnymi wartościami w przypadku ich braku
+        const messageContent = message.message || '';
+        const senderId = message.sender_id || 0;
+        const senderName = message.sender_name || 'Nieznany';
+        const senderAvatar = message.sender_avatar || '/wp-content/plugins/wp-messenger-chat/assets/images/default-avatar.png';
+        const sentAt = message.sent_at || new Date().toISOString();
+        const isMine = !!message.is_mine; // konwersja na boolean
+        const attachment = message.attachment || null;
+        const messageId = message.id || 'msg-' + Date.now();
+        const readAt = message.read_at || null;
+
+        // Określ klasę wiadomości
+        const messageClass = isMine ? 'my-message' : 'their-message';
+
+        // Przygotuj HTML dla załącznika PDF, jeśli istnieje
+        let attachmentHtml = '';
+        if (attachment) {
+            const attachmentUrl = attachment.startsWith('http') 
+                ? attachment 
+                : `${messengerChat.uploads_url}/${attachment}`;
+                
+            attachmentHtml = `
+                <div class="message-attachment">
+                    <a href="${attachmentUrl}" target="_blank" class="pdf-attachment">
+                        <span class="attachment-icon dashicons dashicons-pdf"></span>
+                        <span class="attachment-name">${attachment.split('/').pop()}</span>
+                    </a>
+                </div>
+            `;
+        }
+
+        // Przygotuj HTML dla statusu przeczytania, jeśli to moja wiadomość
+        let readStatusHtml = '';
+        if (isMine) {
+            if (readAt) {
+                readStatusHtml = `<div class="message-read">Przeczytano ${formatTime(readAt)}</div>`;
+            } else {
+                readStatusHtml = `<div class="message-not-read">Nieprzeczytane</div>`;
+            }
+        }
+
+        const messageHtml = `
+        <div class="message-item ${messageClass}" data-sender-id="${senderId}" data-message-id="${messageId}">
+            ${!isMine ? `
+                <div class="message-avatar">
+                    <img src="${senderAvatar}" alt="${senderName}">
+                </div>` : ''}
+            <div class="message-content">
+                <div class="message-text">${messageContent}</div>
+                ${attachmentHtml}
+                <div class="message-time">${formatTime(sentAt)}</div>
+                ${readStatusHtml}
+            </div>
+        </div>
+    `;
+
+        // Dodaj wiadomość na początek listy
+        $('.messenger-messages').prepend(messageHtml);
+    }
+
+// Dodawanie wiadomości na koniec listy (dla nowych wiadomości)
     function appendMessage(message) {
         // Sprawdź, czy mamy wszystkie wymagane pola w obiekcie wiadomości
         if (!message || typeof message !== 'object') {

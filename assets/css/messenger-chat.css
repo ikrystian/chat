@@ -1358,6 +1358,20 @@
     .loading-deleted {
         padding: 1rem;
     }
+    
+    /* Wskaźnik ładowania starszych wiadomości */
+    .load-more-messages-indicator {
+        text-align: center;
+        padding: 10px;
+        font-size: 13px;
+        color: #aaa;
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        margin: 5px 0;
+        width: 100%;
+        max-width: 250px;
+        align-self: center;
+    }
 }
 
 

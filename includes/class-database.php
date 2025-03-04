@@ -141,13 +141,15 @@ class WP_Messenger_Chat_Database {
     }
 
     /**
-     * Pobiera wiadomości z konwersacji
+     * Pobiera wiadomości z konwersacji z obsługą paginacji
      *
      * @param int $conversation_id ID konwersacji
      * @param int $user_id ID użytkownika
+     * @param int $limit Limit wiadomości do pobrania
+     * @param int $offset Offset dla paginacji
      * @return array|false Lista wiadomości lub false jeśli użytkownik nie ma dostępu
      */
-    public function get_messages($conversation_id, $user_id) {
+    public function get_messages($conversation_id, $user_id, $limit = 20, $offset = 0) {
         // Sprawdź czy użytkownik ma dostęp do konwersacji
         if (!$this->user_in_conversation($user_id, $conversation_id)) {
             return false;
@@ -160,9 +162,13 @@ class WP_Messenger_Chat_Database {
         $messages = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$table_messages} 
              WHERE conversation_id = %d 
-             ORDER BY sent_at ASC",
-            $conversation_id
+             ORDER BY sent_at DESC
+             LIMIT %d OFFSET %d",
+            $conversation_id, $limit, $offset
         ));
+
+        // Sortuj wiadomości od najstarszej do najnowszej (po pobraniu)
+        $messages = array_reverse($messages);
 
         // Załaduj klasę szyfrowania
         require_once WP_MESSENGER_CHAT_DIR . 'includes/class-encryption.php';
@@ -192,6 +198,23 @@ class WP_Messenger_Chat_Database {
         }
 
         return $messages;
+    }
+    
+    /**
+     * Pobiera liczbę wiadomości w konwersacji
+     *
+     * @param int $conversation_id ID konwersacji
+     * @return int Liczba wiadomości
+     */
+    public function get_messages_count($conversation_id) {
+        global $wpdb;
+        $table_messages = $wpdb->prefix . 'messenger_messages';
+
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_messages} 
+             WHERE conversation_id = %d",
+            $conversation_id
+        ));
     }
 
     /**
