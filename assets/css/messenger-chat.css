@@ -461,7 +461,9 @@
         margin-right: 8px;
 
     }
-
+    .their-message:last-of-type:nth-child(n - 1) {
+        border: 2px solid #000
+    }
     .pdf-attachment .attachment-name {
         font-size: 13px;
         white-space: nowrap;
@@ -476,6 +478,10 @@
 
         margin-top: 4px;
         align-self: flex-end;
+    }
+
+    .my-message:first-child {
+        border: 2px solid #000
     }
 
     .my-message .message-time {
@@ -1351,20 +1357,6 @@
     .loading-archived,
     .loading-deleted {
         padding: 1rem;
-    }
-    
-    /* Wskaźnik ładowania starszych wiadomości */
-    .load-more-messages-indicator {
-        text-align: center;
-        padding: 10px;
-        font-size: 13px;
-        color: #aaa;
-        background-color: rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
-        margin: 5px 0;
-        width: 100%;
-        max-width: 250px;
-        align-self: center;
     }
 }
 

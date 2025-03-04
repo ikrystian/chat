@@ -628,10 +628,10 @@ function notifyNewMessage(conversationId) {
         window.isLoadingMoreMessages = false;
 
         // Pobierz wiadomości (początkowo tylko 20 najnowszych)
-        loadMessages(conversationId, 25, 0, function() {
+        loadMessages(conversationId, 20, 0, function() {
             // Przewiń do najnowszej wiadomości
             scrollToBottom();
-            
+
             // Wyślij powiadomienie o przeczytaniu wiadomości
             if (recipientId) {
                 socket.emit('message_seen', {
@@ -652,12 +652,12 @@ function notifyNewMessage(conversationId) {
             // Pokaż czat na urządzeniach mobilnych
             $('.messenger-conversations').removeClass('active');
             $('.messenger-chat-area').addClass('active');
-            
+
             // Dodaj obsługę przewijania dla lazy loading
             setupScrollListener();
         });
     }
-    
+
     // Ładowanie wiadomości z paginacją
     function loadMessages(conversationId, limit, offset, callback) {
         $.ajax({
@@ -672,7 +672,7 @@ function notifyNewMessage(conversationId) {
             },
             success: function (response) {
                 $('.messenger-loading').hide();
-                
+
                 // Usuń wskaźnik ładowania starszych wiadomości, jeśli istnieje
                 $('.load-more-messages-indicator').remove();
 
@@ -681,12 +681,12 @@ function notifyNewMessage(conversationId) {
                     window.messagesOffset = offset + limit;
                     window.hasMoreMessages = response.data.has_more;
                     window.isLoadingMoreMessages = false;
-                    
+
                     // Zapisz pozycję przewijania i wysokość zawartości przed dodaniem nowych wiadomości
                     const messagesContainer = $('.messenger-messages');
                     const oldScrollHeight = messagesContainer[0].scrollHeight;
                     const oldScrollTop = messagesContainer.scrollTop();
-                    
+
                     // Wyświetl wiadomości
                     if (offset === 0) {
                         // Pierwsze ładowanie - dodaj wiadomości na koniec
@@ -698,12 +698,12 @@ function notifyNewMessage(conversationId) {
                         response.data.messages.forEach(function (message) {
                             prependMessage(message);
                         });
-                        
+
                         // Zachowaj pozycję przewijania po dodaniu nowych wiadomości
                         const newScrollHeight = messagesContainer[0].scrollHeight;
                         messagesContainer.scrollTop(oldScrollTop + (newScrollHeight - oldScrollHeight));
                     }
-                    
+
                     // Wywołaj callback, jeśli został przekazany
                     if (typeof callback === 'function') {
                         callback();
@@ -720,24 +720,24 @@ function notifyNewMessage(conversationId) {
             }
         });
     }
-    
+
     // Konfiguracja nasłuchiwania przewijania dla lazy loading
     function setupScrollListener() {
         const messagesContainer = $('.messenger-messages');
-        
+
         // Usuń poprzedni event listener, jeśli istnieje
         messagesContainer.off('scroll.lazyLoading');
-        
+
         // Dodaj nowy event listener
         messagesContainer.on('scroll.lazyLoading', function() {
             // Sprawdź, czy użytkownik przewinął do góry (do najstarszych wiadomości)
             if (messagesContainer.scrollTop() < 50 && window.hasMoreMessages && !window.isLoadingMoreMessages) {
                 // Pokaż wskaźnik ładowania
                 messagesContainer.prepend('<div class="load-more-messages-indicator">Ładowanie starszych wiadomości...</div>');
-                
+
                 // Ustaw flagę, aby zapobiec wielokrotnym żądaniom
                 window.isLoadingMoreMessages = true;
-                
+
                 // Załaduj więcej wiadomości
                 loadMessages(activeConversation, 20, window.messagesOffset);
             }
@@ -974,10 +974,10 @@ function notifyNewMessage(conversationId) {
         // Przygotuj HTML dla załącznika PDF, jeśli istnieje
         let attachmentHtml = '';
         if (attachment) {
-            const attachmentUrl = attachment.startsWith('http') 
-                ? attachment 
+            const attachmentUrl = attachment.startsWith('http')
+                ? attachment
                 : `${messengerChat.uploads_url}/${attachment}`;
-                
+
             attachmentHtml = `
                 <div class="message-attachment">
                     <a href="${attachmentUrl}" target="_blank" class="pdf-attachment">
