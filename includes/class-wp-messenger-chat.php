@@ -46,18 +46,13 @@ class WP_Messenger_Chat {
 
         // Dodanie shortcode dla czatu
         add_shortcode('messenger_chat', array($this, 'messenger_chat_shortcode'));
-
-        // Dodanie shortcode dla przycisku czatu
-        add_shortcode('chat_button', array($this, 'chat_button_shortcode'));
+;
 
         // Dodanie menu w panelu admina
         add_action('admin_menu', array($this, 'add_admin_menu'));
 
         // Rejestracja tabeli w bazie danych przy aktywacji
         register_activation_hook(WP_MESSENGER_CHAT_FILE, array($this, 'activate'));
-
-        // Dodanie obsługi parametru chat_with w URL
-        add_action('wp_loaded', array($this, 'handle_chat_redirect'));
         
         // Utworzenie katalogu na załączniki
         $this->create_attachments_directory();
@@ -129,11 +124,6 @@ class WP_Messenger_Chat {
         // Pobierz ID zalogowanego użytkownika
         $current_user_id = get_current_user_id();
 
-        // Pobierz kontakty (wszyscy użytkownicy oprócz bieżącego)
-        $users = get_users(array(
-            'exclude' => $current_user_id
-        ));
-
         // Pobierz konwersacje użytkownika
         require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
         $database = new WP_Messenger_Chat_Database();
@@ -148,17 +138,6 @@ class WP_Messenger_Chat {
         return ob_get_clean();
     }
 
-    /**
-     * Shortcode generujący przycisk do czatu z konkretnym użytkownikiem
-     *
-     * @param array $atts Atrybuty shortcode
-     * @return string Kod HTML przycisku
-     */
-    public function chat_button_shortcode($atts) {
-        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-shortcodes.php';
-        $shortcodes = new WP_Messenger_Chat_Shortcodes();
-        return $shortcodes->chat_button_shortcode($atts);
-    }
 
     /**
      * Dodanie menu w panelu admina
@@ -182,15 +161,6 @@ class WP_Messenger_Chat {
         require_once WP_MESSENGER_CHAT_DIR . 'includes/class-admin.php';
         $admin = new WP_Messenger_Chat_Admin();
         $admin->render_admin_page();
-    }
-
-    /**
-     * Obsługuje przekierowanie i automatyczne otwieranie czatu
-     */
-    public function handle_chat_redirect() {
-        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-shortcodes.php';
-        $shortcodes = new WP_Messenger_Chat_Shortcodes();
-        $shortcodes->handle_chat_redirect();
     }
 
     /**

@@ -671,44 +671,4 @@ class WP_Messenger_Chat_Database {
 
         return intval($count) > 0;
     }
-
-    /**
-     * Pobiera listę zablokowanych użytkowników
-     *
-     * @param int $user_id ID użytkownika
-     * @return array Lista zablokowanych użytkowników
-     */
-    public function get_blocked_users($user_id) {
-        global $wpdb;
-        $table_blocked_users = $wpdb->prefix . 'messenger_blocked_users';
-
-        $blocked_users = $wpdb->get_results($wpdb->prepare(
-            "SELECT blocked_user_id, blocked_at 
-             FROM {$table_blocked_users} 
-             WHERE user_id = %d
-             ORDER BY blocked_at DESC",
-            $user_id
-        ));
-
-        // Dodaj dane użytkowników
-        foreach ($blocked_users as $blocked_user) {
-            $user = get_userdata($blocked_user->blocked_user_id);
-            
-            // Pobierz imię i nazwisko użytkownika
-            $first_name = get_user_meta($blocked_user->blocked_user_id, 'first_name', true);
-            $last_name = get_user_meta($blocked_user->blocked_user_id, 'last_name', true);
-            
-            // Jeśli imię i nazwisko są dostępne, użyj ich
-            if (!empty($first_name) && !empty($last_name)) {
-                $blocked_user->display_name = $first_name . ' ' . $last_name;
-            } else {
-                // W przeciwnym razie użyj display_name
-                $blocked_user->display_name = $user ? $user->display_name : 'Nieznany użytkownik';
-            }
-            
-            $blocked_user->avatar = get_avatar_url($blocked_user->blocked_user_id);
-        }
-
-        return $blocked_users;
-    }
 }

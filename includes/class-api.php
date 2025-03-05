@@ -68,10 +68,7 @@ class WP_Messenger_Chat_API {
         
         // Ajax dla odblokowania użytkownika
         add_action('wp_ajax_unblock_user', array($this, 'unblock_user'));
-        
-        // Ajax dla pobrania listy zablokowanych użytkowników
-        add_action('wp_ajax_get_blocked_users', array($this, 'get_blocked_users'));
-        
+                
         // Ajax dla sprawdzenia, czy użytkownik jest zablokowany
         add_action('wp_ajax_is_user_blocked', array($this, 'is_user_blocked'));
     }
@@ -319,7 +316,7 @@ class WP_Messenger_Chat_API {
                 $websocket->send_new_conversation($conversation_id, $recipient_id, $user_id, $sender, $new_message);
                 
                 // Wyślij powiadomienie email o nowej konwersacji
-                $this->send_new_conversation_email($conversation_id, $recipient_id, $user_id, $sender, $new_message);
+               // $this->send_new_conversation_email($conversation_id, $recipient_id, $user_id, $sender, $new_message);
             } else {
                 $websocket->send_message($conversation_id, $recipient_id, $new_message);
             }
@@ -807,54 +804,6 @@ class WP_Messenger_Chat_API {
         } else {
             wp_send_json_error(array('message' => 'Nie udało się odblokować użytkownika'));
         }
-    }
-    
-    /**
-     * Obsługuje pobieranie listy zablokowanych użytkowników
-     */
-    public function get_blocked_users() {
-        // Sprawdź nonce
-        check_ajax_referer('messenger_chat_nonce', 'nonce');
-        
-        $user_id = get_current_user_id();
-        
-        // Załaduj klasę bazy danych
-        require_once WP_MESSENGER_CHAT_DIR . 'includes/class-database.php';
-        $database = new WP_Messenger_Chat_Database();
-        
-        // Pobierz zablokowanych użytkowników
-        $blocked_users = $database->get_blocked_users($user_id);
-        
-        // Przygotuj HTML z listą zablokowanych użytkowników
-        ob_start();
-        
-        if (empty($blocked_users)) {
-            echo '<div class="no-blocked-users">Brak zablokowanych użytkowników</div>';
-        } else {
-            echo '<div class="blocked-users-list">';
-            foreach ($blocked_users as $blocked_user) {
-                ?>
-                <div class="blocked-user-item" data-user-id="<?php echo esc_attr($blocked_user->blocked_user_id); ?>">
-                    <div class="blocked-user-avatar">
-                        <img src="<?php echo esc_url($blocked_user->avatar); ?>" alt="<?php echo esc_attr($blocked_user->display_name); ?>">
-                    </div>
-                    <div class="blocked-user-info">
-                        <div class="blocked-user-name"><?php echo esc_html($blocked_user->display_name); ?></div>
-                        <div class="blocked-at">Zablokowano: <?php echo date_i18n(get_option('date_format'), strtotime($blocked_user->blocked_at)); ?></div>
-                    </div>
-                    <div class="blocked-user-actions">
-                        <button class="unblock-user" data-user-id="<?php echo esc_attr($blocked_user->blocked_user_id); ?>">
-                            <span class="dashicons dashicons-unlock"></span> Odblokuj
-                        </button>
-                    </div>
-                </div>
-                <?php
-            }
-            echo '</div>';
-        }
-        
-        $html = ob_get_clean();
-        wp_send_json_success($html);
     }
     
     /**

@@ -26,7 +26,7 @@
 
                 // Przewiń do najnowszej wiadomości
                 scrollToBottom();
-                
+
                 // Oznacz wiadomości jako przeczytane
                 markMessagesAsRead(data.conversation_id);
             } else {
@@ -34,20 +34,20 @@
                 notifyNewMessage(data.conversation_id);
             }
         });
-        
-        socket.on('new_conversation', function(data) {
+
+        socket.on('new_conversation', function (data) {
             console.log('Otrzymano nową konwersację:', data);
 
             // Odśwież listę konwersacji, aby pokazać nową konwersację
             refreshConversationsList();
-            
+
             // Powiadomienie o nowej wiadomości
             playNotificationSound();
         });
-        
+
         socket.on('message_read', function (data) {
             console.log('Otrzymano potwierdzenie przeczytania:', data);
-            
+
             // Aktualizuj wskaźniki przeczytania dla wiadomości w konwersacji
             updateReadReceipts(data.conversation_id, data.read_at);
         });
@@ -57,7 +57,7 @@
                 showTypingIndicator(data.user_id);
             }
         });
-        
+
         socket.on('message_seen', function (data) {
             if (data.conversation_id === activeConversation) {
                 // Aktualizuj status "seen" dla wiadomości wysłanych przez bieżącego użytkownika
@@ -73,26 +73,19 @@
     }
 
 // Powiadomienie o nowej wiadomości
-function notifyNewMessage(conversationId) {
-    // Znajdź konwersację na liście i dodaj wskaźnik nowej wiadomości
-    const conversationItem = $(`.conversation-item[data-conversation-id="${conversationId}"]`);
-    
-    // Sprawdź, czy konwersacja istnieje na liście
-    if (conversationItem.length === 0) {
-        // Jeśli konwersacja nie istnieje, odśwież całą listę konwersacji
-        refreshConversationsList();
-        return;
+    function notifyNewMessage(conversationId) {
+        // Znajdź konwersację na liście i dodaj wskaźnik nowej wiadomości
+        const conversationItem = $(`.conversation-item[data-conversation-id="${conversationId}"]`);
+
+        conversationItem.addClass('has-new-message');
+
+        // Opcjonalnie - dodaj dźwięk powiadomienia
+        playNotificationSound();
+
+        // Przenieś konwersację na górę listy
+        const conversationsList = $('.messenger-conversations-list');
+        conversationsList.prepend(conversationItem);
     }
-    
-    conversationItem.addClass('has-new-message');
-
-    // Opcjonalnie - dodaj dźwięk powiadomienia
-    playNotificationSound();
-
-    // Przenieś konwersację na górę listy
-    const conversationsList = $('.messenger-conversations-list');
-    conversationsList.prepend(conversationItem);
-}
 
     // Odtwarzanie dźwięku powiadomienia
     function playNotificationSound() {
@@ -139,29 +132,17 @@ function notifyNewMessage(conversationId) {
             });
         }
     }
-    
-    // Wysyłanie powiadomienia o przeczytaniu wiadomości
-    function sendMessageSeenNotification(conversationId, recipientId) {
-        if (!conversationId || !recipientId || !socket.connected) return;
-        
-        // Wyślij powiadomienie o przeczytaniu wiadomości
-        socket.emit('message_seen', {
-            conversation_id: parseInt(conversationId),
-            recipient_id: parseInt(recipientId),
-            user_id: currentUserId,
-            seen_at: new Date().toISOString()
-        });
-    }
-    
+
+
     // Aktualizacja statusu "seen" dla wiadomości
     function updateMessageSeenStatus(seenAt) {
         // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
         const myMessages = $('.message-item.my-message');
-        
+
         // Dodaj status "seen" tylko do ostatniej wiadomości
         if (myMessages.length > 0) {
             const lastMessage = myMessages.last();
-            
+
             // Sprawdź, czy już ma status "seen"
             if (!lastMessage.find('.message-seen').length) {
                 // Dodaj status "seen" do ostatniej wiadomości
@@ -176,43 +157,7 @@ function notifyNewMessage(conversationId) {
             }
         }
     }
-    
-    // Wysyłanie powiadomienia o przeczytaniu wiadomości
-    function sendMessageSeenNotification(conversationId, recipientId) {
-        if (!conversationId || !recipientId || !socket.connected) return;
-        
-        // Wyślij powiadomienie o przeczytaniu wiadomości
-        socket.emit('message_seen', {
-            conversation_id: parseInt(conversationId),
-            recipient_id: parseInt(recipientId),
-            user_id: currentUserId,
-            seen_at: new Date().toISOString()
-        });
-    }
-    
-    // Aktualizacja statusu "seen" dla wiadomości
-    function updateMessageSeenStatus(seenAt) {
-        // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
-        const myMessages = $('.message-item.my-message');
-        
-        // Dodaj status "seen" tylko do ostatniej wiadomości
-        if (myMessages.length > 0) {
-            const lastMessage = myMessages.last();
-            
-            // Sprawdź, czy już ma status "seen"
-            if (!lastMessage.find('.message-seen').length) {
-                // Dodaj status "seen" do ostatniej wiadomości
-                lastMessage.find('.message-time').after(`
-                    <div class="message-seen">
-                        Wyświetlono ${formatTime(seenAt)}
-                    </div>
-                `);
-            } else {
-                // Zaktualizuj istniejący status "seen"
-                lastMessage.find('.message-seen').text(`Wyświetlono ${formatTime(seenAt)}`);
-            }
-        }
-    }
+
 
     // Pobranie ID odbiorcy z ID konwersacji
     function getRecipientIdFromConversation(conversationId) {
@@ -230,77 +175,77 @@ function notifyNewMessage(conversationId) {
             script.src = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js';
             script.type = 'module';
             document.head.appendChild(script);
-            
+
             // Dodaj style dla emoji-picker-element
             const style = document.createElement('link');
             style.rel = 'stylesheet';
             style.href = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.css';
             document.head.appendChild(style);
-            
+
             // Poczekaj na załadowanie biblioteki
-            script.onload = function() {
+            script.onload = function () {
                 createEmojiPicker();
             };
         } else {
             createEmojiPicker();
         }
     }
-    
+
     // Tworzenie i konfiguracja emoji pickera
     function createEmojiPicker() {
         const emojiPickerContainer = document.getElementById('emoji-picker-container');
-        
+
         // Sprawdź, czy kontener istnieje i czy nie zawiera już emoji-picker
         if (emojiPickerContainer && !emojiPickerContainer.querySelector('emoji-picker')) {
             // Utwórz element emoji-picker
             const picker = document.createElement('emoji-picker');
             emojiPickerContainer.appendChild(picker);
-            
+
             // Obsługa wyboru emoji
             picker.addEventListener('emoji-click', event => {
                 const messageTextarea = document.getElementById('messenger-message');
                 const emoji = event.detail.unicode;
-                
+
                 // Wstaw emoji w miejscu kursora
                 const start = messageTextarea.selectionStart;
                 const end = messageTextarea.selectionEnd;
                 const text = messageTextarea.value;
                 const before = text.substring(0, start);
                 const after = text.substring(end, text.length);
-                
+
                 messageTextarea.value = before + emoji + after;
-                
+
                 // Ustaw kursor za wstawionym emoji
                 messageTextarea.selectionStart = messageTextarea.selectionEnd = start + emoji.length;
-                
+
                 // Ukryj picker po wyborze emoji
                 toggleEmojiPicker(false);
-                
+
                 // Ustaw focus na textarea
                 messageTextarea.focus();
             });
-            
+
             // Obsługa kliknięcia przycisku emoji
-            document.getElementById('messenger-emoji-btn').addEventListener('click', function(e) {
+            document.getElementById('messenger-emoji-btn').addEventListener('click', function (e) {
                 e.preventDefault();
                 toggleEmojiPicker();
             });
-            
+
             // Zamknij picker po kliknięciu poza nim
-            document.addEventListener('click', function(e) {
+            document.addEventListener('click', function (e) {
                 const emojiBtn = document.getElementById('messenger-emoji-btn');
                 const emojiPicker = document.querySelector('emoji-picker');
-                
-                if (emojiPicker && 
-                    !emojiPicker.contains(e.target) && 
-                    e.target !== emojiBtn && 
+
+                if (emojiPicker &&
+                    !emojiPicker.contains(e.target) &&
+                    e.target !== emojiBtn &&
                     !emojiBtn.contains(e.target)) {
                     toggleEmojiPicker(false);
                 }
             });
         }
     }
-    
+
     // Przełączanie widoczności emoji pickera
     function toggleEmojiPicker(forceState) {
         const picker = document.querySelector('emoji-picker');
@@ -322,15 +267,20 @@ function notifyNewMessage(conversationId) {
         connectWebSocket();
         handleFileSelect();
         initEmojiPicker();
-        
+
         // Odśwież listę konwersacji przy inicjalizacji
         refreshConversationsList();
 
         // Sprawdź, czy w URL jest ID konwersacji (zakodowane base64)
         const urlParams = new URLSearchParams(window.location.search);
         const encodedConversationId = urlParams.get('conversation');
-        
-        if (encodedConversationId) {
+        const chatWithUserId = urlParams.get('chat_with');
+
+        if (chatWithUserId) {
+            // Jeśli jest parametr chat_with, zamockuj nową konwersację z tym użytkownikiem
+            // $('.messenger-conversations').hide();
+            mockConversationWithUser(parseInt(chatWithUserId));
+        } else if (encodedConversationId) {
             try {
                 // Dekoduj ID konwersacji z base64
                 const conversationIdFromUrl = atob(encodedConversationId);
@@ -345,122 +295,98 @@ function notifyNewMessage(conversationId) {
         }
 
         // Obsługa przycisku archiwizacji/przywracania w nagłówku konwersacji
-        $(document).on('click', '.toggle-archive-btn', function() {
+        $(document).on('click', '.toggle-archive-btn', function () {
             const conversationId = $('#messenger-conversation-id').val();
             if (!conversationId || conversationId === '0') {
                 return; // Nie ma aktywnej konwersacji
             }
-            
+
             // Sprawdź, czy konwersacja jest zarchiwizowana
             const isArchived = $(this).hasClass('is-archived');
-            
+
             if (isArchived) {
                 unarchiveConversation(conversationId);
             } else {
                 archiveConversation(conversationId);
             }
         });
-        
+
         // Obsługa przycisku usuwania w nagłówku konwersacji
-        $(document).on('click', '.delete-conversation-btn', function() {
+        $(document).on('click', '.delete-conversation-btn', function () {
             const conversationId = $('#messenger-conversation-id').val();
             if (!conversationId || conversationId === '0') {
                 return; // Nie ma aktywnej konwersacji
             }
-            
+
             if (confirm('Czy na pewno chcesz usunąć tę konwersację?')) {
                 deleteConversation(conversationId);
             }
         });
-        
+
         // Obsługa przycisku załączników
-        $(document).on('click', '.view-attachments', function(e) {
+        $(document).on('click', '.view-attachments', function (e) {
             e.stopPropagation(); // Zapobiega otwieraniu konwersacji
             const conversationId = $(this).data('conversation-id');
             if (!conversationId) {
                 return;
             }
-            
+
             // Pobierz załączniki dla konwersacji
             getConversationAttachments(conversationId);
         });
-        
+
         // Obsługa zamykania popupu z załącznikami
-        $(document).on('click', '.attachments-close, .attachments-popup', function(e) {
+        $(document).on('click', '.attachments-close, .attachments-popup', function (e) {
             if (e.target === this) {
                 closeAttachmentsPopup();
             }
         });
-        
+
         // Obsługa przycisku informacji o użytkowniku
-        $(document).on('click', '.info-btn', function() {
+        $(document).on('click', '.info-btn', function () {
             const conversationId = $('#messenger-conversation-id').val();
             if (!conversationId || conversationId === '0') {
                 return; // Nie ma aktywnej konwersacji
             }
-            
+
             // Pobierz ID odbiorcy z aktywnej konwersacji
             const recipientId = getRecipientIdFromConversation(conversationId);
             if (!recipientId) {
                 return;
             }
-            
+
             // Pobierz informacje o użytkowniku
             getUserInfo(recipientId);
         });
-        
+
         // Obsługa zamykania popupu z informacjami o użytkowniku
-        $(document).on('click', '.user-info-close, .user-info-popup', function(e) {
+        $(document).on('click', '.user-info-close, .user-info-popup', function (e) {
             if (e.target === this) {
                 closeUserInfoPopup();
             }
         });
-        
+
         // Obsługa przycisku blokowania użytkownika
-        $(document).on('click', '.block-user-btn', function() {
+        $(document).on('click', '.block-user-btn', function () {
             const userId = $(this).data('user-id');
             if (!userId) {
                 return;
             }
-            
+
             if (confirm('Czy na pewno chcesz zablokować tego użytkownika? Nie będzie mógł wysyłać do Ciebie wiadomości.')) {
                 blockUser(userId);
             }
         });
-        
+
         // Obsługa przycisku odblokowania użytkownika
-        $(document).on('click', '.unblock-user-btn', function() {
+        $(document).on('click', '.unblock-user-btn', function () {
             const userId = $(this).data('user-id');
             if (!userId) {
                 return;
             }
-            
+
             if (confirm('Czy na pewno chcesz odblokować tego użytkownika?')) {
                 unblockUser(userId);
-            }
-        });
-        
-        // Obsługa przycisku wyświetlania zablokowanych użytkowników
-        $(document).on('click', '.show-blocked-users-btn', function() {
-            getBlockedUsers();
-        });
-        
-        // Obsługa zamykania popupu z zablokowanymi użytkownikami
-        $(document).on('click', '.blocked-users-close, .blocked-users-popup', function(e) {
-            if (e.target === this) {
-                closeBlockedUsersPopup();
-            }
-        });
-        
-        // Obsługa przycisku odblokowania użytkownika z listy zablokowanych
-        $(document).on('click', '.blocked-user-item .unblock-user', function() {
-            const userId = $(this).data('user-id');
-            if (!userId) {
-                return;
-            }
-            
-            if (confirm('Czy na pewno chcesz odblokować tego użytkownika?')) {
-                unblockUser(userId, true);
             }
         });
 
@@ -543,23 +469,16 @@ function notifyNewMessage(conversationId) {
             $('.messenger-tabs a').removeClass('active');
             $(this).addClass('active');
 
-            // Ukryj wszystkie listy
             $('.messenger-conversations-list, .messenger-contacts-list, .messenger-archived-list, .messenger-deleted-list').hide();
 
             if (tab === 'conversations') {
                 $('.messenger-conversations-list').show();
-                // Odśwież listę konwersacji przy przełączeniu na zakładkę konwersacji
-                refreshConversationsList();
             } else if (tab === 'archived') {
                 $('.messenger-archived-list').show();
-                // Załaduj zarchiwizowane konwersacje
                 loadArchivedConversations();
             } else if (tab === 'deleted') {
                 $('.messenger-deleted-list').show();
-                // Załaduj usunięte konwersacje
                 loadDeletedConversations();
-            } else if (tab === 'contacts') {
-                $('.messenger-contacts-list').show();
             }
         });
 
@@ -576,7 +495,7 @@ function notifyNewMessage(conversationId) {
             const conversationId = $(this).data('conversation-id');
             unarchiveConversation(conversationId);
         });
-        
+
         // Obsługa przywracania usuniętych konwersacji
         $(document).on('click', '.restore-conversation', function (e) {
             e.stopPropagation();
@@ -604,14 +523,14 @@ function notifyNewMessage(conversationId) {
         // Ukryj pole recipient_id (nie jest potrzebne dla istniejącej konwersacji)
         $('#messenger-recipient-id').val('');
         $('#messenger-conversation-id').val(conversationId);
-        
+
         // Pobierz ID odbiorcy z konwersacji
         const recipientId = getRecipientIdFromConversation(conversationId);
-        
+
         // Sprawdź, czy konwersacja jest zarchiwizowana
         const isArchived = $(`.conversation-item[data-conversation-id="${conversationId}"]`).hasClass('archived');
         const toggleArchiveBtn = $('.toggle-archive-btn');
-        
+
         if (isArchived) {
             toggleArchiveBtn.addClass('is-archived');
             toggleArchiveBtn.attr('title', 'Przywróć konwersację');
@@ -628,7 +547,7 @@ function notifyNewMessage(conversationId) {
         window.isLoadingMoreMessages = false;
 
         // Pobierz wiadomości (początkowo tylko 20 najnowszych)
-        loadMessages(conversationId, 30, 0, function() {
+        loadMessages(conversationId, 30, 0, function () {
             // Przewiń do najnowszej wiadomości
             scrollToBottom();
 
@@ -729,7 +648,7 @@ function notifyNewMessage(conversationId) {
         messagesContainer.off('scroll.lazyLoading');
 
         // Dodaj nowy event listener
-        messagesContainer.on('scroll.lazyLoading', function() {
+        messagesContainer.on('scroll.lazyLoading', function () {
             // Sprawdź, czy użytkownik przewinął do góry (do najstarszych wiadomości)
             if (messagesContainer.scrollTop() < 50 && window.hasMoreMessages && !window.isLoadingMoreMessages) {
                 // Pokaż wskaźnik ładowania
@@ -749,7 +668,7 @@ function notifyNewMessage(conversationId) {
 
     // Obsługa wyboru pliku
     function handleFileSelect() {
-        $('#messenger-attachment').on('change', function(e) {
+        $('#messenger-attachment').on('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
 
@@ -786,7 +705,7 @@ function notifyNewMessage(conversationId) {
         previewContainer.append(preview);
 
         // Obsługa usuwania załącznika
-        $('.attachment-remove').on('click', function() {
+        $('.attachment-remove').on('click', function () {
             $(this).closest('.attachment-preview').remove();
             $('#messenger-attachment').val('');
             selectedFile = null;
@@ -798,6 +717,9 @@ function notifyNewMessage(conversationId) {
         const messageText = $('#messenger-message').val().trim();
         const conversationId = $('#messenger-conversation-id').val();
         const recipientId = $('#messenger-recipient-id').val();
+        if (document.querySelector('.message-info') !== null) {
+            document.querySelector('.message-info').remove();
+        }
 
         if (messageText === '' && !selectedFile) {
             return;
@@ -835,7 +757,7 @@ function notifyNewMessage(conversationId) {
         formData.append('recipient_id', recipientId);
         formData.append('message', messageText);
         formData.append('nonce', messengerChat.nonce);
-        
+
         // Dodaj plik, jeśli został wybrany
         if (selectedFile) {
             formData.append('attachment', selectedFile);
@@ -852,12 +774,10 @@ function notifyNewMessage(conversationId) {
             data: formData,
             processData: false,
             contentType: false,
-            success: function(response) {
+            success: function (response) {
                 console.log('Odpowiedź z serwera:', response);
 
                 if (response.success) {
-                    // Usuń tymczasową wiadomość
-                    $('.message-item.sending').remove();
 
                     // Sprawdź, czy response.data.message zawiera właściwą treść wiadomości
                     if (response.data && response.data.message) {
@@ -888,7 +808,7 @@ function notifyNewMessage(conversationId) {
                         activeConversation = parseInt(response.data.conversation_id);
                         $('#messenger-conversation-id').val(response.data.conversation_id);
                         $('#messenger-recipient-id').val('');
-
+                        updateUrlWithConversationId(activeConversation)
                         // Odśwież listę konwersacji
                         refreshConversationsList();
                     }
@@ -898,7 +818,7 @@ function notifyNewMessage(conversationId) {
                         .find('.message-text').append('<div class="message-error">Błąd wysyłania</div>');
                 }
             },
-            error: function(xhr, status, error) {
+            error: function (xhr, status, error) {
                 console.error('Błąd AJAX:', status, error);
 
                 // Pokaż błąd wysyłania
@@ -910,10 +830,7 @@ function notifyNewMessage(conversationId) {
 
     function refreshConversationsList() {
         console.log('Odświeżanie listy konwersacji...');
-        
-        // Pokaż wskaźnik ładowania, jeśli istnieje
-        $('.messenger-conversations-loading').show();
-        
+
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
@@ -921,28 +838,25 @@ function notifyNewMessage(conversationId) {
                 action: 'get_conversations',
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 // Ukryj wskaźnik ładowania
-                $('.messenger-conversations-loading').hide();
-                
+
                 if (response.success) {
                     // Zaktualizuj listę konwersacji
                     $('.messenger-conversations-list').html(response.data);
-                    
+
                     // Zaznacz aktywną konwersację, jeśli istnieje
                     if (activeConversation > 0) {
                         $(`.conversation-item[data-conversation-id="${activeConversation}"]`).addClass('active');
                     }
-                    
+
                     console.log('Lista konwersacji została zaktualizowana');
                 } else {
                     console.error('Błąd podczas odświeżania listy konwersacji:', response.data);
                 }
             },
-            error: function(xhr, status, error) {
-                // Ukryj wskaźnik ładowania
-                $('.messenger-conversations-loading').hide();
-                
+            error: function (xhr, status, error) {
+
                 console.error('Błąd AJAX podczas odświeżania listy konwersacji:', status, error);
             }
         });
@@ -1052,17 +966,13 @@ function notifyNewMessage(conversationId) {
         // Określ klasę wiadomości
         const messageClass = isMine ? 'my-message' : 'their-message';
 
-        // Pobierz poprzednią wiadomość i sprawdź, czy jest od tego samego nadawcy
-        const previousMessage = $('.message-item').last();
-        const showAvatar = false; // Domyślnie ukrywamy avatar, później go pokażemy jeśli to ostatnia wiadomość
-
         // Przygotuj HTML dla załącznika PDF, jeśli istnieje
         let attachmentHtml = '';
         if (attachment) {
-            const attachmentUrl = attachment.startsWith('http') 
-                ? attachment 
+            const attachmentUrl = attachment.startsWith('http')
+                ? attachment
                 : `${messengerChat.uploads_url}/${attachment}`;
-                
+
             attachmentHtml = `
                 <div class="message-attachment">
                     <a href="${attachmentUrl}" target="_blank" class="pdf-attachment">
@@ -1099,17 +1009,17 @@ function notifyNewMessage(conversationId) {
     `;
 
         $('.messenger-messages').append(messageHtml);
-        
+
         scrollToBottom();
     }
-    
+
     // Oznaczanie wiadomości jako przeczytane
     function markMessagesAsRead(conversationId) {
         if (!conversationId) return;
-        
+
         // Pobierz ID odbiorcy
         const recipientId = getRecipientIdFromConversation(conversationId);
-        
+
         // Wyślij żądanie AJAX do oznaczenia wiadomości jako przeczytane
         $.ajax({
             url: messengerChat.ajaxurl,
@@ -1119,21 +1029,21 @@ function notifyNewMessage(conversationId) {
                 conversation_id: conversationId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 console.log('Wiadomości oznaczone jako przeczytane:', response);
             },
-            error: function(xhr, status, error) {
+            error: function (xhr, status, error) {
                 console.error('Błąd podczas oznaczania wiadomości jako przeczytane:', status, error);
             }
         });
     }
-    
+
     // Aktualizacja wskaźników przeczytania dla wiadomości
     function updateReadReceipts(conversationId, readAt) {
         if (conversationId !== activeConversation) return;
-        
+
         // Znajdź wszystkie wiadomości wysłane przez bieżącego użytkownika
-        $('.message-item.my-message').each(function() {
+        $('.message-item.my-message').each(function () {
             // Zaktualizuj status przeczytania
             const readStatus = $(this).find('.message-not-read');
             if (readStatus.length > 0) {
@@ -1148,20 +1058,20 @@ function notifyNewMessage(conversationId) {
             }
         });
     }
-    
+
     // Aktualizacja URL z ID konwersacji (zakodowane base64)
     function updateUrlWithConversationId(conversationId) {
         if (!conversationId) return;
-        
+
         // Utwórz nowy obiekt URLSearchParams z bieżącego URL
         const urlParams = new URLSearchParams(window.location.search);
-        
+
         // Zakoduj ID konwersacji za pomocą base64
         const encodedId = btoa(conversationId.toString());
-        
+
         // Ustaw parametr conversation
         urlParams.set('conversation', encodedId);
-        
+
         // Zaktualizuj URL bez przeładowania strony
         const newUrl = window.location.pathname + '?' + urlParams.toString();
         window.history.pushState({path: newUrl}, '', newUrl);
@@ -1174,7 +1084,7 @@ function notifyNewMessage(conversationId) {
             scrollTop: messagesContainer[0].scrollHeight
         }, 300);
     }
-    
+
     // Formatowanie czasu
     function formatTime(timeString) {
         try {
@@ -1200,14 +1110,14 @@ function notifyNewMessage(conversationId) {
 
             // Ten sam dzień
             if (date.toDateString() === now.toDateString()) {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
             }
 
             // Wczoraj
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
             if (date.toDateString() === yesterday.toDateString()) {
-                return 'wczoraj ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return 'wczoraj ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
             }
 
             // W tym tygodniu
@@ -1224,7 +1134,7 @@ function notifyNewMessage(conversationId) {
             return 'teraz';
         }
     }
-    
+
     // Archiwizacja konwersacji
     function archiveConversation(conversationId) {
         $.ajax({
@@ -1235,7 +1145,7 @@ function notifyNewMessage(conversationId) {
                 conversation_id: conversationId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Jeśli to aktywna konwersacja, zaktualizuj przycisk w nagłówku
                     if (activeConversation === parseInt(conversationId)) {
@@ -1244,18 +1154,18 @@ function notifyNewMessage(conversationId) {
                         toggleArchiveBtn.attr('title', 'Przywróć konwersację');
                         toggleArchiveBtn.find('i').removeClass('dashicons-archive').addClass('dashicons-undo');
                     }
-                    
+
                     // Usuń konwersację z listy aktywnych
-                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function () {
                         $(this).remove();
-                        
+
                         // Jeśli to była aktywna konwersacja, wyczyść obszar czatu
                         if (activeConversation === parseInt(conversationId)) {
                             // Nie resetujemy activeConversation, aby przycisk archiwizacji działał poprawnie
                             // Użytkownik może przywrócić konwersację bezpośrednio z nagłówka
                         }
                     });
-                    
+
                     // Pokaż powiadomienie o sukcesie
                     showNotification('Konwersacja została zarchiwizowana');
                 } else {
@@ -1263,12 +1173,12 @@ function notifyNewMessage(conversationId) {
                     showNotification('Nie udało się zarchiwizować konwersacji', 'error');
                 }
             },
-            error: function() {
+            error: function () {
                 showNotification('Wystąpił błąd podczas archiwizacji konwersacji', 'error');
             }
         });
     }
-    
+
     // Przywracanie zarchiwizowanej konwersacji
     function unarchiveConversation(conversationId) {
         $.ajax({
@@ -1279,7 +1189,7 @@ function notifyNewMessage(conversationId) {
                 conversation_id: conversationId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Jeśli to aktywna konwersacja, zaktualizuj przycisk w nagłówku
                     if (activeConversation === parseInt(conversationId)) {
@@ -1288,18 +1198,18 @@ function notifyNewMessage(conversationId) {
                         toggleArchiveBtn.attr('title', 'Archiwizuj konwersację');
                         toggleArchiveBtn.find('i').removeClass('dashicons-undo').addClass('dashicons-archive');
                     }
-                    
+
                     // Usuń konwersację z listy zarchiwizowanych
-                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function () {
                         $(this).remove();
                     });
-                    
+
                     // Odśwież listę aktywnych konwersacji
                     refreshConversationsList();
-                    
+
                     // Pokaż powiadomienie o sukcesie
                     showNotification('Konwersacja została przywrócona');
-                    
+
                     // Przełącz na zakładkę konwersacji
                     $('.messenger-tabs a[data-tab="conversations"]').click();
                 } else {
@@ -1307,17 +1217,17 @@ function notifyNewMessage(conversationId) {
                     showNotification('Nie udało się przywrócić konwersacji', 'error');
                 }
             },
-            error: function() {
+            error: function () {
                 showNotification('Wystąpił błąd podczas przywracania konwersacji', 'error');
             }
         });
     }
-    
+
     // Ładowanie zarchiwizowanych konwersacji
     function loadArchivedConversations() {
         // Pokaż wskaźnik ładowania
         $('.messenger-archived-list').html('<div class="loading-archived">Ładowanie zarchiwizowanych konwersacji...</div>');
-        
+
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
@@ -1325,7 +1235,7 @@ function notifyNewMessage(conversationId) {
                 action: 'get_archived_conversations',
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Zaktualizuj listę zarchiwizowanych konwersacji
                     $('.messenger-archived-list').html(response.data);
@@ -1334,12 +1244,12 @@ function notifyNewMessage(conversationId) {
                     $('.messenger-archived-list').html('<div class="error-message">Błąd podczas ładowania zarchiwizowanych konwersacji</div>');
                 }
             },
-            error: function() {
+            error: function () {
                 $('.messenger-archived-list').html('<div class="error-message">Błąd podczas ładowania zarchiwizowanych konwersacji</div>');
             }
         });
     }
-    
+
     // Usuwanie konwersacji (soft delete)
     function deleteConversation(conversationId) {
         $.ajax({
@@ -1350,13 +1260,13 @@ function notifyNewMessage(conversationId) {
                 conversation_id: conversationId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Usuń konwersację z listy
-                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function () {
                         $(this).remove();
                     });
-                    
+
                     // Jeśli to była aktywna konwersacja, wyczyść obszar czatu
                     if (activeConversation === parseInt(conversationId)) {
                         // Wyczyść obszar czatu
@@ -1365,10 +1275,10 @@ function notifyNewMessage(conversationId) {
                         $('#messenger-conversation-id').val(0);
                         activeConversation = 0;
                     }
-                    
+
                     // Pokaż powiadomienie o sukcesie
                     showNotification('Konwersacja została usunięta wraz ze wszystkimi wiadomościami i załącznikami');
-                    
+
                     // Odśwież listę konwersacji
                     refreshConversationsList();
                 } else {
@@ -1376,12 +1286,12 @@ function notifyNewMessage(conversationId) {
                     showNotification('Nie udało się usunąć konwersacji', 'error');
                 }
             },
-            error: function() {
+            error: function () {
                 showNotification('Wystąpił błąd podczas usuwania konwersacji', 'error');
             }
         });
     }
-    
+
     // Przywracanie usuniętej konwersacji
     function restoreConversation(conversationId) {
         $.ajax({
@@ -1392,19 +1302,19 @@ function notifyNewMessage(conversationId) {
                 conversation_id: conversationId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Usuń konwersację z listy usuniętych
-                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function() {
+                    $(`.conversation-item[data-conversation-id="${conversationId}"]`).fadeOut(300, function () {
                         $(this).remove();
                     });
-                    
+
                     // Odśwież listę aktywnych konwersacji
                     refreshConversationsList();
-                    
+
                     // Pokaż powiadomienie o sukcesie
                     showNotification('Konwersacja została przywrócona');
-                    
+
                     // Przełącz na zakładkę konwersacji
                     $('.messenger-tabs a[data-tab="conversations"]').click();
                 } else {
@@ -1412,17 +1322,17 @@ function notifyNewMessage(conversationId) {
                     showNotification('Nie udało się przywrócić konwersacji', 'error');
                 }
             },
-            error: function() {
+            error: function () {
                 showNotification('Wystąpił błąd podczas przywracania konwersacji', 'error');
             }
         });
     }
-    
+
     // Ładowanie usuniętych konwersacji
     function loadDeletedConversations() {
         // Pokaż wskaźnik ładowania
         $('.messenger-deleted-list').html('<div class="loading-deleted">Ładowanie usuniętych konwersacji...</div>');
-        
+
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
@@ -1430,7 +1340,7 @@ function notifyNewMessage(conversationId) {
                 action: 'get_deleted_conversations',
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Zaktualizuj listę usuniętych konwersacji
                     $('.messenger-deleted-list').html(response.data);
@@ -1439,12 +1349,12 @@ function notifyNewMessage(conversationId) {
                     $('.messenger-deleted-list').html('<div class="error-message">Błąd podczas ładowania usuniętych konwersacji</div>');
                 }
             },
-            error: function() {
+            error: function () {
                 $('.messenger-deleted-list').html('<div class="error-message">Błąd podczas ładowania usuniętych konwersacji</div>');
             }
         });
     }
-    
+
     // Pobieranie załączników konwersacji
     function getConversationAttachments(conversationId) {
         // Pokaż popup z ładowaniem
@@ -1452,7 +1362,7 @@ function notifyNewMessage(conversationId) {
         $('.attachments-loading').show();
         $('.attachments-list').empty();
         $('.attachments-empty').hide();
-        
+
         $.ajax({
             url: messengerChat.ajaxurl,
             type: 'POST',
@@ -1461,14 +1371,14 @@ function notifyNewMessage(conversationId) {
                 conversation_id: conversationId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 $('.attachments-loading').hide();
-                
+
                 if (response.success && response.data && response.data.length > 0) {
                     // Wyświetl listę załączników
                     const attachmentsList = $('.attachments-list');
-                    
-                    response.data.forEach(function(attachment) {
+
+                    response.data.forEach(function (attachment) {
                         const attachmentItem = `
                             <div class="attachment-item">
                                 <span class="attachment-icon dashicons dashicons-pdf"></span>
@@ -1479,7 +1389,7 @@ function notifyNewMessage(conversationId) {
                                 <a href="${attachment.url}" target="_blank" class="attachment-download">Pobierz</a>
                             </div>
                         `;
-                        
+
                         attachmentsList.append(attachmentItem);
                     });
                 } else {
@@ -1487,18 +1397,18 @@ function notifyNewMessage(conversationId) {
                     $('.attachments-empty').show();
                 }
             },
-            error: function() {
+            error: function () {
                 $('.attachments-loading').hide();
                 $('.attachments-list').html('<div class="error-message">Błąd podczas pobierania załączników</div>');
             }
         });
     }
-    
+
     // Zamykanie popupu z załącznikami
     function closeAttachmentsPopup() {
         $('#attachments-popup').removeClass('active');
     }
-    
+
     // Pobieranie informacji o użytkowniku
     function getUserInfo(userId) {
         $.ajax({
@@ -1509,188 +1419,39 @@ function notifyNewMessage(conversationId) {
                 user_id: userId,
                 nonce: messengerChat.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     // Wypełnij popup danymi użytkownika
                     fillUserInfoPopup(response.data);
-                    
+
                     // Pokaż popup
                     showUserInfoPopup();
                 } else {
                     showNotification('Nie udało się pobrać informacji o użytkowniku', 'error');
                 }
             },
-            error: function() {
+            error: function () {
                 showNotification('Wystąpił błąd podczas pobierania informacji o użytkowniku', 'error');
             }
         });
     }
-    
-    // Wypełnianie popupu danymi użytkownika
+
     function fillUserInfoPopup(userData) {
         // Ustaw avatar
         $('.user-info-avatar img').attr('src', userData.avatar);
-        
+
         // Ustaw imię i nazwisko
         $('.user-info-name').text(userData.display_name);
-        
+
         // Ustaw rolę
         $('.user-info-role').text(userData.role);
-        
+
         // Ustaw email
         $('.user-info-email').text(userData.user_email);
-        
+
         // Ustaw datę rejestracji
         $('.user-info-registered').text(userData.user_registered);
-        
-        // Ustaw opis (jeśli istnieje)
-        if (userData.description) {
-            $('.user-info-description').text(userData.description);
-            $('.user-info-section:last-child').show();
-        } else {
-            $('.user-info-description').text('Brak opisu');
-            $('.user-info-section:last-child').show();
-        }
-    }
-    
-    // Pokazywanie popupu z informacjami o użytkowniku
-    function showUserInfoPopup() {
-        $('#user-info-popup').addClass('active');
-    }
-    
-    // Zamykanie popupu z informacjami o użytkowniku
-    function closeUserInfoPopup() {
-        $('#user-info-popup').removeClass('active');
-    }
-    
-    // Blokowanie użytkownika
-    function blockUser(userId) {
-        $.ajax({
-            url: messengerChat.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'block_user',
-                user_id: userId,
-                nonce: messengerChat.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Aktualizuj UI
-                    $('.block-user-btn').hide();
-                    $('.unblock-user-btn').show();
-                    $('.unblock-user-btn').data('user-id', userId);
-                    
-                    // Pokaż powiadomienie o sukcesie
-                    showNotification('Użytkownik został zablokowany');
-                    
-                    // Zamknij popup z informacjami o użytkowniku
-                    closeUserInfoPopup();
-                    
-                    // Odśwież listę konwersacji
-                    refreshConversationsList();
-                } else {
-                    // Pokaż błąd
-                    showNotification('Nie udało się zablokować użytkownika', 'error');
-                }
-            },
-            error: function() {
-                showNotification('Wystąpił błąd podczas blokowania użytkownika', 'error');
-            }
-        });
-    }
-    
-    // Odblokowanie użytkownika
-    function unblockUser(userId, refreshList = false) {
-        $.ajax({
-            url: messengerChat.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'unblock_user',
-                user_id: userId,
-                nonce: messengerChat.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    if (refreshList) {
-                        // Odśwież listę zablokowanych użytkowników
-                        getBlockedUsers();
-                    } else {
-                        // Aktualizuj UI
-                        $('.unblock-user-btn').hide();
-                        $('.block-user-btn').show();
-                        $('.block-user-btn').data('user-id', userId);
-                    }
-                    
-                    // Pokaż powiadomienie o sukcesie
-                    showNotification('Użytkownik został odblokowany');
-                    
-                    // Odśwież listę konwersacji
-                    refreshConversationsList();
-                } else {
-                    // Pokaż błąd
-                    showNotification('Nie udało się odblokować użytkownika', 'error');
-                }
-            },
-            error: function() {
-                showNotification('Wystąpił błąd podczas odblokowania użytkownika', 'error');
-            }
-        });
-    }
-    
-    // Pobieranie listy zablokowanych użytkowników
-    function getBlockedUsers() {
-        // Pokaż popup z ładowaniem
-        $('#blocked-users-popup').addClass('active');
-        $('.blocked-users-loading').show();
-        $('.blocked-users-list').empty();
-        
-        $.ajax({
-            url: messengerChat.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'get_blocked_users',
-                nonce: messengerChat.nonce
-            },
-            success: function(response) {
-                $('.blocked-users-loading').hide();
-                
-                if (response.success) {
-                    // Wyświetl listę zablokowanych użytkowników
-                    $('.blocked-users-list').html(response.data);
-                } else {
-                    // Pokaż błąd
-                    $('.blocked-users-list').html('<div class="error-message">Błąd podczas pobierania zablokowanych użytkowników</div>');
-                }
-            },
-            error: function() {
-                $('.blocked-users-loading').hide();
-                $('.blocked-users-list').html('<div class="error-message">Błąd podczas pobierania zablokowanych użytkowników</div>');
-            }
-        });
-    }
-    
-    // Zamykanie popupu z zablokowanymi użytkownikami
-    function closeBlockedUsersPopup() {
-        $('#blocked-users-popup').removeClass('active');
-    }
-    
-    // Wypełnianie popupu danymi użytkownika
-    function fillUserInfoPopup(userData) {
-        // Ustaw avatar
-        $('.user-info-avatar img').attr('src', userData.avatar);
-        
-        // Ustaw imię i nazwisko
-        $('.user-info-name').text(userData.display_name);
-        
-        // Ustaw rolę
-        $('.user-info-role').text(userData.role);
-        
-        // Ustaw email
-        $('.user-info-email').text(userData.user_email);
-        
-        // Ustaw datę rejestracji
-        $('.user-info-registered').text(userData.user_registered);
-        
+
         // Ustaw opis (jeśli istnieje)
         if (userData.description) {
             $('.user-info-description').text(userData.description);
@@ -1699,17 +1460,17 @@ function notifyNewMessage(conversationId) {
             $('.user-info-description').text('Brak opisu');
             $('.user-info-section:nth-last-child(2)').show();
         }
-        
+
         // Dodaj informacje z WooCommerce billing (jeśli istnieją)
         // Najpierw usuń istniejące sekcje billing, jeśli istnieją
         $('.user-info-billing-section').remove();
-        
+
         if (userData.billing && Object.keys(userData.billing).length > 0) {
-            
+
             // Dodaj poszczególne pola
             const billingFields = $('<div class="user-info-billing-fields"></div>');
             billingHeader.append(billingFields);
-            
+
             // Iteruj przez pola billing
             Object.values(userData.billing).forEach(field => {
                 billingFields.append(`
@@ -1720,14 +1481,14 @@ function notifyNewMessage(conversationId) {
                 `);
             });
         }
-        
+
         // Ustaw przyciski blokowania/odblokowania
         const blockUserBtn = $('.block-user-btn');
         const unblockUserBtn = $('.unblock-user-btn');
-        
+
         blockUserBtn.data('user-id', userData.id);
         unblockUserBtn.data('user-id', userData.id);
-        
+
         if (userData.is_blocked) {
             blockUserBtn.hide();
             unblockUserBtn.show();
@@ -1736,30 +1497,160 @@ function notifyNewMessage(conversationId) {
             unblockUserBtn.hide();
         }
     }
-    
+
+    // Pokazywanie popupu z informacjami o użytkowniku
+    function showUserInfoPopup() {
+        $('#user-info-popup').addClass('active');
+    }
+
+    // Zamykanie popupu z informacjami o użytkowniku
+    function closeUserInfoPopup() {
+        $('#user-info-popup').removeClass('active');
+    }
+
+    // Blokowanie użytkownika
+    function blockUser(userId) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'block_user',
+                user_id: userId,
+                nonce: messengerChat.nonce
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Aktualizuj UI
+                    $('.block-user-btn').hide();
+                    $('.unblock-user-btn').show();
+                    $('.unblock-user-btn').data('user-id', userId);
+
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Użytkownik został zablokowany');
+
+                    // Zamknij popup z informacjami o użytkowniku
+                    closeUserInfoPopup();
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się zablokować użytkownika', 'error');
+                }
+            },
+            error: function () {
+                showNotification('Wystąpił błąd podczas blokowania użytkownika', 'error');
+            }
+        });
+    }
+
+    // Odblokowanie użytkownika
+    function unblockUser(userId, refreshList = false) {
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'unblock_user',
+                user_id: userId,
+                nonce: messengerChat.nonce
+            },
+            success: function (response) {
+                if (response.success) {
+                    // Pokaż powiadomienie o sukcesie
+                    showNotification('Użytkownik został odblokowany');
+
+                } else {
+                    // Pokaż błąd
+                    showNotification('Nie udało się odblokować użytkownika', 'error');
+                }
+            },
+            error: function () {
+                showNotification('Wystąpił błąd podczas odblokowania użytkownika', 'error');
+            }
+        });
+    }
+
     // Wyświetlanie powiadomień
     function showNotification(message, type = 'success') {
         // Usuń istniejące powiadomienia
         $('.messenger-notification').remove();
-        
+
         // Utwórz nowe powiadomienie
         const notification = $(`<div class="messenger-notification ${type}">${message}</div>`);
-        
+
         // Dodaj do DOM
         $('body').append(notification);
-        
+
         // Pokaż powiadomienie
-        setTimeout(function() {
+        setTimeout(function () {
             notification.addClass('show');
         }, 10);
-        
+
         // Ukryj po 3 sekundach
-        setTimeout(function() {
+        setTimeout(function () {
             notification.removeClass('show');
-            setTimeout(function() {
+            setTimeout(function () {
                 notification.remove();
             }, 300);
         }, 3000);
+    }
+
+    // Mockowanie konwersacji z użytkownikiem
+    function mockConversationWithUser(userId) {
+        if (!userId) return;
+
+        // Pobierz informacje o użytkowniku
+        $.ajax({
+            url: messengerChat.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'get_user_info',
+                user_id: userId,
+                nonce: messengerChat.nonce
+            },
+            success: function (response) {
+                if (response.success) {
+                    const userData = response.data;
+                    // Dodaj użytkownika do listy konwersacji
+                    const conversationItem = `
+                        <div class="conversation-item mocked-conversation" data-recipient-id="${userId}">
+                            <div class="conversation-avatar">
+                                <img src="${userData.avatar}" alt="${userData.display_name}">
+                            </div>
+                            <div class="conversation-info">
+                                <div class="user-name">${userData.display_name}</div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Dodaj element na początek listy konwersacji
+                    $('.messenger-conversations-list').prepend(conversationItem);
+
+                    // Przygotuj obszar czatu
+                    $('.conversation-header h3').text(userData.display_name);
+                    $('.messenger-messages').empty();
+                    $('.messenger-loading').hide();
+                    $('.messenger-input').show();
+
+                    // Ustaw recipient_id dla formularza
+                    $('#messenger-recipient-id').val(userId);
+                    $('#messenger-conversation-id').val(0);
+
+                    // Pokaż czat na urządzeniach mobilnych
+                    $('.messenger-conversations').removeClass('active');
+                    $('.messenger-chat-area').addClass('active');
+
+                    // Dodaj informację o rozpoczęciu konwersacji
+                    $('.messenger-messages').append(`
+                        <div class="message-info">
+                            Rozpocznij konwersację z ${userData.display_name}
+                        </div>
+                    `);
+                } else {
+                    showNotification('Nie udało się pobrać informacji o użytkowniku', 'error');
+                }
+            },
+            error: function () {
+                showNotification('Wystąpił błąd podczas pobierania informacji o użytkowniku', 'error');
+            }
+        });
     }
 
     // Inicjalizacja po załadowaniu dokumentu

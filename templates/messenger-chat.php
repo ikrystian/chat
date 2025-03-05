@@ -12,7 +12,6 @@
             <a href="#" class="active" data-tab="conversations">Konwersacje</a>
             <a href="#" data-tab="archived">Archiwum</a>
             <a href="#" data-tab="deleted">Usunięte</a>
-            <a href="#" data-tab="contacts">Kontakty</a>
         </div>
 
         <!-- Lista konwersacji -->
@@ -69,31 +68,6 @@
         <!-- Lista usuniętych konwersacji -->
         <div class="messenger-deleted-list" style="display: none;">
             <div class="loading-deleted">Ładowanie usuniętych konwersacji...</div>
-        </div>
-
-        <!-- Lista kontaktów -->
-        <div class="messenger-contacts-list">
-            <?php if (empty($users)): ?>
-                <div class="empty-state">
-                    <p>Brak dostępnych kontaktów</p>
-                </div>
-            <?php else: ?>
-                <?php foreach ($users as $user): ?>
-                    <div class="contact-item new-conversation" data-user-id="<?php echo esc_attr($user->ID); ?>" data-user-name="<?php echo esc_attr($user->display_name); ?>">
-                        <div class="contact-avatar">
-                            <img src="<?php echo esc_url(get_avatar_url($user->ID)); ?>" alt="<?php echo esc_attr($user->display_name); ?>">
-                            <?php if (rand(0, 1)): // Przykładowy status online ?>
-                                <span class="online-status"></span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="contact-info">
-                            <div class="contact-header">
-                                <span class="user-name"><?php echo esc_html($user->display_name); ?></span>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
         </div>
     </div>
 
